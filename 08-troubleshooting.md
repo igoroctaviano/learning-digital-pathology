@@ -1,231 +1,112 @@
-# Troubleshooting Common Issues
+# Troubleshooting
 
-## Issue: Images Not Loading
+Common issues and solutions when working with pathology viewers.
+
+## Images Not Loading
 
 ### Symptoms
 
 - Blank viewer
-- Error messages about failed frame retrieval
 - Tiles not appearing
+- Loading spinner never stops
 
 ### Possible Causes
 
-1. **DICOMweb Server Unreachable**
-
-   - Check server URL in configuration
-   - Verify network connectivity
-   - Check CORS settings
-
-2. **Authentication Issues**
-
-   - Verify OAuth tokens are valid
-   - Check token expiration
-   - Verify scopes/permissions
-
-3. **Metadata Issues**
-   - Verify DICOM metadata is valid
-   - Check for required attributes
-   - Verify FrameOfReferenceUID matches
+1. **Metadata issues**: Invalid or missing DICOM metadata
+2. **DICOMweb connection**: Server unreachable or authentication failed
+3. **Frame mapping errors**: Incorrect frame mapping
+4. **Compression format**: Unsupported compression format
 
 ### Solutions
 
-```javascript
-// Check DICOMweb client configuration
-const client = new DICOMwebClient({
-  url: "https://your-server.com/dicomweb",
-  headers: {
-    Authorization: "Bearer " + token,
-  },
-});
+**Check metadata**:
+```typescript
+// Verify metadata structure
+console.log('Metadata:', slide.volumeImages);
+console.log('ImageType:', slide.volumeImages[0].ImageType);
+console.log('FrameOfReferenceUID:', slide.volumeImages[0].FrameOfReferenceUID);
+```
 
-// Verify metadata retrieval
+**Check DICOMweb connection**:
+```typescript
+// Test connection
 const metadata = await client.retrieveSeriesMetadata({
-  studyInstanceUID: "...",
-  seriesInstanceUID: "...",
+  studyInstanceUID,
+  seriesInstanceUID
 });
-console.log("Metadata:", metadata);
+console.log('Retrieved metadata:', metadata.length, 'instances');
 ```
 
-## Issue: Pyramid Levels Not Matching
-
-### Symptoms
-
-- Segmentation/annotations don't align with image
-- Overlays appear in wrong location
-- Zoom levels don't match
-
-### Possible Causes
-
-1. **Different Pixel Spacings**
-
-   - Image and overlay have different pixel spacings
-   - Pyramid levels don't align
-
-2. **Missing Pyramid Levels**
-   - Overlay has fewer pyramid levels than image
-   - Some zoom levels missing
-
-### Solutions
-
-```javascript
-// Verify pixel spacings match
-const imagePixelSpacing = getPixelSpacing(imageMetadata);
-const overlayPixelSpacing = getPixelSpacing(overlayMetadata);
-
-if (!areArraysEqual(imagePixelSpacing, overlayPixelSpacing)) {
-  console.warn("Pixel spacings do not match");
-}
-
-// Use pyramid fitting
-const [fittedPyramid] = _fitImagePyramid(overlayPyramid, imagePyramid);
-```
-
-## Issue: Annotations Not Displaying
-
-### Symptoms
-
-- Annotations don't appear
-- ROI overlays missing
-- Error messages about annotation loading
-
-### Possible Causes
-
-1. **Coordinate System Mismatch**
-
-   - Annotations in wrong coordinate system
-   - FrameOfReferenceUID mismatch
-
-2. **Annotation Format Issues**
-
-   - Invalid DICOM SR structure
-   - Missing required attributes
-
-3. **Client Mapping Issues**
-   - Annotations stored in different server
-   - Client mapping not configured
-
-### Solutions
-
+**Check frame mapping**:
 ```typescript
-// Verify FrameOfReferenceUID matches
-const imageFOR = slide.volumeImages[0].FrameOfReferenceUID;
-const annotationFOR = annotation.ReferencedFrameOfReferenceUID;
-
-if (imageFOR !== annotationFOR) {
-  console.error("FrameOfReferenceUID mismatch");
-}
-
-// Check client mapping
-const clients = {
-  default: imageClient,
-  [StorageClasses.COMPREHENSIVE_3D_SR]: annotationClient,
-};
+// Verify frame mapping exists
+const pyramid = _computeImagePyramid({ metadata: slide.volumeImages });
+console.log('Frame mappings:', pyramid.frameMappings);
 ```
 
-## Issue: Performance Problems
+## Pyramid Not Building
 
 ### Symptoms
 
-- Slow tile loading
-- Laggy pan/zoom
-- High memory usage
+- Error: "Pyramid levels must share FrameOfReferenceUID"
+- Error: "Pyramid levels must share ContainerIdentifier"
+- Only one resolution level available
 
 ### Possible Causes
 
-1. **Too Many Tiles Cached**
-
-   - Cache size too large
-   - Not clearing cache
-
-2. **Preloading Too Many Levels**
-
-   - Preloading all pyramid levels
-   - Loading unnecessary tiles
-
-3. **Network Issues**
-   - Slow DICOMweb server
-   - Large tile sizes
+1. **Inconsistent UIDs**: Different `FrameOfReferenceUID` or `ContainerIdentifier` across levels
+2. **Missing levels**: Not all pyramid levels present
+3. **Wrong image type**: Non-VOLUME images included
 
 ### Solutions
 
-```javascript
-// Reduce cache size
-const viewer = new VolumeImageViewer({
-  tilesCacheSize: 500, // Reduce from default 1000
-  metadata: images,
-});
-
-// Disable preloading
-const viewer = new VolumeImageViewer({
-  preload: false, // Don't preload
-  metadata: images,
-});
-
-// Use smaller tiles (if possible)
-// Configure scanner to use 256x256 instead of 512x512
-```
-
-## Issue: Color Display Issues
-
-### Symptoms
-
-- Colors look wrong
-- Images appear washed out
-- Inconsistent colors across slides
-
-### Possible Causes
-
-1. **Missing ICC Profiles**
-
-   - ICC profiles not applied
-   - Color space not corrected
-
-2. **Display Calibration**
-   - Monitor not calibrated
-   - Color profile issues
-
-### Solutions
-
-```javascript
-// Enable ICC profiles
-const viewer = new VolumeImageViewer({
-  metadata: images,
-  // ICC profiles enabled by default
-});
-
-// Verify ICC profile exists
-const iccProfile = image.OpticalPathSequence[0].ICCProfile;
-if (!iccProfile) {
-  console.warn("ICC profile missing");
-}
-```
-
-## Issue: Multi-Channel Display Problems
-
-### Symptoms
-
-- Channels not displaying
-- Wrong colors for channels
-- Channels not blending correctly
-
-### Possible Causes
-
-1. **Channel Identifier Mismatch**
-
-   - Wrong channel identifier used
-   - Channel not found
-
-2. **Blending Mode Issues**
-   - Additive blending not working
-   - Color mapping incorrect
-
-### Solutions
-
+**Verify UIDs**:
 ```typescript
-// Verify optical path identifiers
+// Check consistency
+const frameOfReferenceUIDs = slide.volumeImages.map(img => img.FrameOfReferenceUID);
+const containerIdentifiers = slide.volumeImages.map(img => img.ContainerIdentifier);
+
+console.log('FrameOfReferenceUIDs:', [...new Set(frameOfReferenceUIDs)]);
+console.log('ContainerIdentifiers:', [...new Set(containerIdentifiers)]);
+
+// Should be single values
+if (new Set(frameOfReferenceUIDs).size > 1) {
+  console.error('Multiple FrameOfReferenceUIDs found!');
+}
+```
+
+**Check image types**:
+```typescript
+// Filter VOLUME images only
+const volumeImages = slide.volumeImages.filter(img => {
+  return img.ImageType[2] === 'VOLUME';
+});
+console.log('VOLUME images:', volumeImages.length);
+```
+
+## Optical Paths Not Displaying
+
+### Symptoms
+
+- Only one channel visible
+- Can't switch between channels
+- Channel selector not appearing
+
+### Possible Causes
+
+1. **Missing OpticalPathSequence**: Metadata doesn't include optical path information
+2. **Single optical path**: Only one optical path in image
+3. **Frame mapping errors**: Incorrect frame mapping for optical paths
+
+### Solutions
+
+**Verify optical paths**:
+```typescript
+// Check optical paths
 const opticalPaths = image.OpticalPathSequence;
+console.log('Optical paths:', opticalPaths.length);
 opticalPaths.forEach((path) => {
-  console.log("Optical Path:", path.OpticalPathIdentifier);
+  console.log('Optical Path:', path.OpticalPathIdentifier);
 });
 
 // Set optical path visibility
@@ -235,125 +116,265 @@ viewer.setChannelVisibility(opticalPathIdentifier, true);
 viewer.setChannelColor(opticalPathIdentifier, [255, 0, 0]); // Red
 ```
 
-## Issue: Concatenation Problems
+## Annotations Not Loading
 
 ### Symptoms
 
-- Missing tiles
-- Incomplete image display
-- Frame mapping errors
+- Annotations don't appear
+- Error loading annotations
+- Annotations in wrong location
 
 ### Possible Causes
 
-1. **Concatenation Not Reassembled**
-
-   - Parts not properly linked
-   - Missing concatenation metadata
-
-2. **Frame Offset Issues**
-   - Frame numbers don't match
-   - Offset calculation wrong
+1. **Missing references**: Annotations don't reference correct image
+2. **Coordinate mismatch**: Coordinates in wrong coordinate system
+3. **Server issues**: Annotation server unreachable
 
 ### Solutions
 
-```javascript
-// Verify concatenation metadata
-if (metadata.SOPInstanceUIDOfConcatenationSource) {
-  const concatenationUID = metadata.ConcatenationUID;
-  const partNumber = metadata.InConcatenationNumber;
-  const frameOffset = metadata.ConcatenationFrameOffsetNumber;
+**Check annotation references**:
+```typescript
+// Verify annotation references image
+const referencedSOPInstanceUID = annotation.ReferencedSOPInstanceUID;
+const imageSOPInstanceUID = slide.volumeImages[0].SOPInstanceUID;
 
-  console.log("Concatenation:", {
-    uid: concatenationUID,
-    part: partNumber,
-    offset: frameOffset,
-  });
+if (referencedSOPInstanceUID !== imageSOPInstanceUID) {
+  console.error('Annotation references wrong image!');
 }
 ```
 
-## Issue: Authentication Failures
+**Check coordinates**:
+```typescript
+// Verify coordinates are in physical (slide) coordinates
+const coordinates = annotation.GraphicData; // Should be in mm
+console.log('Coordinates:', coordinates);
+```
+
+## Performance Issues
 
 ### Symptoms
 
-- 401 Unauthorized errors
-- Token expiration errors
-- OAuth flow failures
+- Slow tile loading
+- Laggy pan/zoom
+- High memory usage
 
 ### Possible Causes
 
-1. **Token Expired**
-
-   - Access token expired
-   - Refresh token invalid
-
-2. **Scope Issues**
-
-   - Missing required scopes
-   - Insufficient permissions
-
-3. **OAuth Configuration**
-   - Wrong client ID
-   - Incorrect redirect URI
+1. **Large cache**: Too many tiles cached
+2. **Network issues**: Slow DICOMweb server
+3. **Large images**: Very high resolution images
+4. **Too many annotations**: Thousands of annotations
 
 ### Solutions
 
-```javascript
-// Check token expiration
-const token = getAccessToken();
-if (isTokenExpired(token)) {
-  await refreshToken();
+**Reduce cache size**:
+```typescript
+// Reduce tile cache
+const viewer = new VolumeImageViewer({
+  tilesCacheSize: 500, // Default: 1000
+  // ...
+});
+```
+
+**Preload lower resolutions**:
+```typescript
+// Preload lower resolution levels
+const viewer = new VolumeImageViewer({
+  preload: 2, // Preload 2 lowest resolution levels
+  // ...
+});
+```
+
+**Optimize annotations**:
+```typescript
+// Use bulk annotations for large numbers
+// Instead of individual ROI annotations
+```
+
+## Color Issues
+
+### Symptoms
+
+- Colors look wrong
+- Inconsistent colors across displays
+- Color shifts
+
+### Possible Causes
+
+1. **Missing ICC profile**: ICC profile not applied
+2. **Wrong ICC profile**: Incorrect profile for image
+3. **Display calibration**: Monitor not calibrated
+
+### Solutions
+
+**Enable ICC profiles**:
+```typescript
+// Ensure ICC profiles are enabled
+const viewer = new VolumeImageViewer({
+  // ICC profiles enabled by default
+  // ...
+});
+```
+
+**Check ICC profile**:
+```typescript
+// Verify ICC profile exists
+const iccProfile = image.ICCProfile;
+if (!iccProfile) {
+  console.warn('No ICC profile found');
 }
+```
 
-// Verify scopes
-const requiredScopes = ["https://www.googleapis.com/auth/cloud-healthcare"];
-verifyScopes(token, requiredScopes);
+## Coordinate Transformation Errors
 
-// Check OAuth configuration
-const oidcConfig = {
-  authority: "https://accounts.google.com",
-  clientId: "your-client-id",
-  scope:
-    "email profile openid https://www.googleapis.com/auth/cloud-healthcare",
-};
+### Symptoms
+
+- Annotations in wrong location
+- Measurements incorrect
+- Coordinate conversion errors
+
+### Possible Causes
+
+1. **Wrong pixel spacing**: Incorrect `PixelSpacing` value
+2. **Coordinate system mismatch**: Mixing pixel and physical coordinates
+3. **Origin offset**: Incorrect `TotalPixelMatrixOriginSequence`
+
+### Solutions
+
+**Verify pixel spacing**:
+```typescript
+// Check pixel spacing
+const pixelSpacing = getPixelSpacing(image);
+console.log('Pixel spacing:', pixelSpacing); // Should be in mm
+
+// Convert coordinates
+const physicalX = pixelX * pixelSpacing[0];
+const physicalY = pixelY * pixelSpacing[1];
+```
+
+**Check origin**:
+```typescript
+// Verify origin
+const origin = image.TotalPixelMatrixOriginSequence[0];
+console.log('Origin:', {
+  x: origin.XOffsetInSlideCoordinateSystem,
+  y: origin.YOffsetInSlideCoordinateSystem
+});
+```
+
+## DICOMweb Connection Issues
+
+### Symptoms
+
+- Can't connect to server
+- Authentication errors
+- Timeout errors
+
+### Possible Causes
+
+1. **Wrong URL**: Incorrect DICOMweb endpoint
+2. **Authentication**: Missing or invalid credentials
+3. **CORS**: Cross-origin issues
+4. **Network**: Server unreachable
+
+### Solutions
+
+**Check URL**:
+```typescript
+// Verify DICOMweb URL
+const client = new DICOMwebClient({
+  url: 'https://example.com/dicomweb', // Check this URL
+  // ...
+});
+```
+
+**Check authentication**:
+```typescript
+// Verify OAuth token
+const token = getAuthToken();
+if (!token) {
+  console.error('No authentication token!');
+}
+```
+
+**Check CORS**:
+```typescript
+// Verify CORS headers
+// Server must allow requests from your domain
 ```
 
 ## Debugging Tips
 
 ### Enable Debug Mode
 
-```javascript
+```typescript
+// Enable debug features
 const viewer = new VolumeImageViewer({
-  debug: true, // Shows tile boundaries
-  metadata: images,
+  debug: true, // Shows tile boundaries, etc.
+  // ...
 });
 ```
 
 ### Check Console Logs
 
-```javascript
+```typescript
 // Enable verbose logging
-console.info("Loading tile:", { z, y, x, channel });
-console.info("Pyramid:", pyramid);
-console.info("Frame mapping:", frameMapping);
+console.log('Pyramid:', pyramid);
+console.log('Frame mappings:', frameMappings);
+console.log('Tile requests:', tileRequests);
 ```
 
-### Verify Metadata
+### Inspect Network Requests
 
-```javascript
-// Check image metadata
-const image = new VLWholeSlideMicroscopyImage({ metadata });
-console.log("Image type:", image.ImageType);
-console.log("Dimensions:", {
-  total: [image.TotalPixelMatrixColumns, image.TotalPixelMatrixRows],
-  tile: [image.Columns, image.Rows],
+- Open browser DevTools → Network tab
+- Filter by "frames" or "metadata"
+- Check request/response headers
+- Verify WADO-RS URLs are correct
+
+### Verify DICOM Metadata
+
+```typescript
+// Inspect metadata
+console.log('Image metadata:', image.json);
+console.log('Key attributes:', {
+  SOPInstanceUID: image.SOPInstanceUID,
+  TotalPixelMatrixColumns: image.TotalPixelMatrixColumns,
+  TotalPixelMatrixRows: image.TotalPixelMatrixRows,
+  PixelSpacing: getPixelSpacing(image),
+  FrameOfReferenceUID: image.FrameOfReferenceUID,
+  ContainerIdentifier: image.ContainerIdentifier
 });
-console.log("Pixel spacing:", getPixelSpacing(image));
 ```
+
+## Common Error Messages
+
+### "Pyramid levels must share FrameOfReferenceUID"
+
+**Cause**: Different `FrameOfReferenceUID` values across pyramid levels.
+
+**Solution**: Ensure all VOLUME images in the same slide have the same `FrameOfReferenceUID`.
+
+### "Pyramid levels must share ContainerIdentifier"
+
+**Cause**: Different `ContainerIdentifier` values across pyramid levels.
+
+**Solution**: Ensure all VOLUME images in the same slide have the same `ContainerIdentifier`.
+
+### "No image metadata was provided"
+
+**Cause**: Empty metadata array passed to viewer.
+
+**Solution**: Verify metadata retrieval and filtering.
+
+### "Failed to retrieve frame"
+
+**Cause**: DICOMweb request failed (network, authentication, or server error).
+
+**Solution**: Check DICOMweb connection, authentication, and server logs.
 
 ## Getting Help
 
-1. **Check Logs**: Browser console and network tab
-2. **Verify Metadata**: Use DICOM viewer to check DICOM files
-3. **Test DICOMweb**: Use curl/Postman to test endpoints
-4. **Check Documentation**: Review DICOM standard and library docs
-5. **Report Issues**: Include error messages, metadata samples, steps to reproduce
+- Check the [official DICOM WSI documentation](https://dicom.nema.org/dicom/dicomwsi/)
+- Review [Key Concepts](./06-key-concepts.md) for technical details
+- Consult [Glossary](./09-glossary.md) for terminology
+

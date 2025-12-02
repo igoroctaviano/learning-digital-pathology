@@ -1,21 +1,20 @@
-# Common Use Cases and Scenarios
+# Common Use Cases
 
-## Use Case 1: Viewing an H&E Slide
+This document describes real-world scenarios and how the pathology viewer handles them.
+
+## Use Case 1: Viewing H&E Stained Slides
 
 ### Scenario
 
 A pathologist needs to review an H&E (Hematoxylin and Eosin) stained slide for diagnosis.
 
-### What Happens
+### Workflow
 
-1. **User opens Slim**: Navigates to study URL or searches for patient
-2. **Slim queries DICOMweb**: Uses QIDO-RS to find studies/series
-3. **Slim organizes slides**: Groups images by ContainerIdentifier
-4. **User selects slide**: Clicks on slide in sidebar
-5. **Viewer loads**: dicom-microscopy-viewer computes pyramid
-6. **Initial view**: Low-resolution overview loads first
-7. **User zooms in**: High-resolution tiles load on demand
-8. **User pans**: New tiles load as they become visible
+1. **User opens study**: CaseViewer queries DICOMweb for series
+2. **Slim discovers slides**: Groups images by `ContainerIdentifier`
+3. **User selects slide**: SlideViewer mounts
+4. **Viewer loads**: dicom-microscopy-viewer computes pyramid and displays slide
+5. **User pans/zooms**: Tiles load on-demand as user navigates
 
 ### Technical Details
 
@@ -67,15 +66,15 @@ const tileLoader = _createTileLoadFunction({ pyramid, client, channel: "0" });
 
 ### Scenario
 
-A researcher needs to view a CycIF (Cyclic Immunofluorescence) slide with 20+ channels.
+A researcher needs to view a multiplexed fluorescence slide with 20+ channels (e.g., CycIF - Cyclic Immunofluorescence).
 
-### What Happens
+### Workflow
 
-1. **Multiple optical paths**: Each channel is a separate optical path
-2. **Channel selection**: User can select which channels to display
-3. **Channel blending**: Multiple channels can be overlaid with colors
-4. **Additive blending**: Channels are combined additively
-5. **Color mapping**: Each channel gets a color (DAPI=blue, FITC=green, etc.)
+1. **User selects slide**: Same as H&E workflow
+2. **Viewer detects channels**: Reads `OpticalPathSequence` from metadata
+3. **User selects channels**: UI shows channel selector
+4. **Viewer loads frames**: Requests frames for selected optical paths
+5. **Channels blend**: Multiple channels displayed with pseudocoloring
 
 ### Technical Details
 
@@ -85,7 +84,16 @@ A researcher needs to view a CycIF (Cyclic Immunofluorescence) slide with 20+ ch
 - **Display**: Optical paths can be toggled on/off
 - **Blending**: Additive blending for fluorescence
 
-### Code Flow
+### How It Works
+
+**Technical details**:
+- All optical paths share the same `SOPInstanceUID` and `SeriesInstanceUID`
+- Frame mapping includes optical path identifier: `"row-column-opticalPath"`
+- Viewer loads frames for each selected optical path
+- Channels can be blended additively with pseudocoloring
+
+<details>
+<summary><em>Code example (optional - skip if not coding)</em></summary>
 
 ```typescript
 // dicom-microscopy-viewer: Detects multiple optical paths
@@ -106,297 +114,173 @@ for (let i = 0; i < numberOfOpticalPaths; i++) {
 const visibleOpticalPaths = ["DAPI", "FITC", "Rhodamine"];
 volumeViewer.setVisibleChannels(visibleOpticalPaths);
 ```
+</details>
 
 ## Use Case 3: Creating ROI Annotations
 
 ### Scenario
 
-A pathologist wants to annotate a region of interest (tumor area) on a slide.
+A pathologist needs to mark regions of interest (ROI) on a slide for documentation or analysis.
 
-### What Happens
+### Workflow
 
-1. **User activates tool**: Clicks "Draw Polygon" button
-2. **User draws**: Clicks points to create polygon
-3. **Slim captures geometry**: Stores polygon coordinates
-4. **User adds label**: Selects finding (e.g., "Neoplasm")
-5. **Slim creates DICOM SR**: Structures annotation according to TID 1500
-6. **Slim stores**: Sends DICOM SR to server via STOW-RS
-7. **Viewer displays**: Annotation appears as overlay
+1. **User selects drawing tool**: Polygon, circle, or point tool
+2. **User draws on slide**: Clicks to create ROI
+3. **Slim captures coordinates**: Stores in physical (slide) coordinates
+4. **User saves annotation**: Slim creates DICOM Comprehensive 3D SR object
+5. **Annotation stored**: Saved to DICOMweb server via STOW-RS
 
 ### Technical Details
 
-- **Storage Format**: DICOM Comprehensive 3D SR
-- **Template**: TID 1500 (Measurement Report)
-- **ROI Template**: TID 1410 (Planar ROI Measurements)
-- **Coordinates**: Stored in physical coordinates (mm)
-- **Geometry**: SCOORD3D (3D spatial coordinates)
+- **Format**: DICOM Comprehensive 3D SR (TID1500)
+- **Coordinates**: Physical (slide) coordinates, not pixels
+- **Reference**: Links to image via `ReferencedSOPInstanceUID`
+- **Series**: Stored in separate series (different modality)
 
-### Code Flow
+### How It Works
 
-```typescript
-// Slim: User draws polygon
-const polygon = new dmv.scoord3d.Polygon({
-  coordinates: [[x1, y1], [x2, y2], [x3, y3], ...]
-})
+**Technical details**:
+- Annotations stored as separate DICOM objects (not part of image)
+- Coordinates converted from screen → pixel → physical
+- Stored in DICOM SR format with structured content
+- Can reference multiple images (e.g., multiple Z-planes)
 
-// Slim: Creates ROI
-const roi = new dmv.roi.ROI({
-  scoord3d: polygon,
-  finding: {
-    value: "108369006",  // SNOMED CT: Neoplasm
-    schemeDesignator: "SCT",
-    meaning: "Neoplasm"
-  }
-})
-
-// Slim: Creates DICOM SR
-const report = buildReport({
-  rois: [roi],
-  referencedImage: slide.volumeImages[0]
-})
-
-// Slim: Stores via DICOMweb
-await client.storeInstances({
-  studyInstanceUID,
-  seriesInstanceUID,
-  instances: [report]
-})
-```
-
-## Use Case 4: Viewing Segmentation Results
+## Use Case 4: Viewing Segmentations
 
 ### Scenario
 
-An AI algorithm has segmented nuclei in a slide. The user wants to view the results.
+A researcher needs to view AI-generated segmentations (e.g., nuclei detection) overlaid on the slide.
 
-### What Happens
+### Workflow
 
-1. **Segmentation exists**: DICOM Segmentation instance references the slide
-2. **Slim detects**: Finds segmentation series linked to slide
-3. **Viewer loads**: dicom-microscopy-viewer loads segmentation
-4. **Pyramid fitting**: Segmentation pyramid is fitted to image pyramid
-5. **Overlay display**: Segmentation displayed as colored overlay
-6. **User toggles**: Can show/hide segmentation
+1. **User selects slide**: Same as viewing workflow
+2. **Slim queries for segmentations**: Searches for DICOM Segmentation objects
+3. **Viewer loads segmentations**: Retrieves segmentation masks
+4. **Masks overlay slide**: Displayed as colored overlays
+5. **User toggles visibility**: Can show/hide different segments
 
 ### Technical Details
 
-- **Storage Format**: DICOM Segmentation
+- **Format**: DICOM Segmentation IOD
+- **Storage**: Separate series from images
+- **Reference**: Links to image via `ReferencedSOPInstanceUID`
 - **Segments**: Each segment (e.g., "Nuclei") is a separate layer/channel
-- **Pyramid Fitting**: Segmentation must match image pyramid levels
-- **Display**: Colored overlay on top of image
-- **Interpolation**: Can interpolate between pyramid levels
 
-### Code Flow
+### How It Works
 
-```typescript
-// Slim: Finds segmentation
-const segmentation = await findSegmentation({
-  studyInstanceUID,
-  referencedSeriesInstanceUID: slide.seriesInstanceUIDs[0],
-});
+**Technical details**:
+- Segmentations stored as binary masks
+- Each segment has a category (e.g., "Nuclei", "Cytoplasm")
+- Masks aligned to image using spatial coordinates
+- Displayed as colored overlays with transparency
 
-// dicom-microscopy-viewer: Loads segmentation
-const segmentationPyramid = _computeImagePyramid({
-  metadata: segmentation.metadata,
-});
-
-// dicom-microscopy-viewer: Fits to image pyramid
-const [fittedPyramid, minZoom, maxZoom] = _fitImagePyramid(
-  segmentationPyramid,
-  imagePyramid
-);
-
-// dicom-microscopy-viewer: Creates overlay layer
-const segmentLayer = new TileLayer({
-  source: new TileSource({
-    tileLoadFunction: _createTileLoadFunction({
-      pyramid: fittedPyramid,
-      client,
-      channel: segmentNumber,
-    }),
-  }),
-});
-
-// Viewer: Adds overlay
-volumeViewer.addOverlay(segmentLayer);
-```
-
-## Use Case 5: Viewing Bulk Annotations
+## Use Case 5: Bulk Annotations
 
 ### Scenario
 
-An algorithm has annotated thousands of cells. The user wants to view them.
+A machine learning algorithm generates thousands of annotations (e.g., cell detections) that need to be displayed.
 
-### What Happens
+### Workflow
 
-1. **Bulk annotations exist**: DICOM Microscopy Bulk Simple Annotations instance
-2. **Slim detects**: Finds annotation series
-3. **Viewer loads**: dicom-microscopy-viewer loads annotation groups
-4. **Clustering**: Annotations are clustered for performance
-5. **Display**: Annotations shown as points/circles
-6. **Filtering**: User can filter by annotation properties
+1. **Algorithm generates annotations**: Creates DICOM Microscopy Bulk Simple Annotations object
+2. **Annotations stored**: Saved to DICOMweb server
+3. **User opens slide**: SlideViewer loads slide
+4. **Slim queries annotations**: Searches for bulk annotation objects
+5. **Viewer displays annotations**: Renders as overlay
 
 ### Technical Details
 
-- **Storage Format**: DICOM Microscopy Bulk Simple Annotations
-- **Annotation Groups**: Annotations grouped by properties
-- **Clustering**: Many annotations clustered for performance
-- **Display**: Points or circles at annotation locations
-- **Properties**: Each annotation has properties (e.g., cell type)
+- **Format**: DICOM Microscopy Bulk Simple Annotations IOD
+- **Storage**: Optimized for large numbers of annotations
+- **Rendering**: Efficiently renders thousands of annotations
+- **Categories**: Supports coded categories and classes
 
-### Code Flow
+### How It Works
 
-```typescript
-// Slim: Finds bulk annotations
-const bulkAnnotations = await findBulkAnnotations({
-  studyInstanceUID,
-  referencedSeriesInstanceUID: slide.seriesInstanceUIDs[0],
-});
+**Technical details**:
+- Bulk annotations optimized for performance
+- Supports 2D/3D points, polygons, polylines
+- Coded categories for classification
+- Efficient rendering for large datasets
 
-// dicom-microscopy-viewer: Loads annotation groups
-const annotationGroups = bulkAnnotations.AnnotationGroupSequence.map(
-  (group) => new AnnotationGroup(group)
-);
-
-// dicom-microscopy-viewer: Clusters annotations
-const clusters = clusterAnnotations(annotationGroups, {
-  maxZoom: 10,
-  clusterDistance: 50,
-});
-
-// dicom-microscopy-viewer: Creates feature layer
-const features = new Collection();
-annotationGroups.forEach((group) => {
-  group.annotations.forEach((annotation) => {
-    const feature = new Feature({
-      geometry: new Point(annotation.coordinates),
-    });
-    features.push(feature);
-  });
-});
-
-// Viewer: Adds feature layer
-volumeViewer.addFeatures(features);
-```
-
-## Use Case 6: Viewing Parametric Maps
+## Use Case 6: Parametric Maps
 
 ### Scenario
 
-An AI model has generated an attention map showing where it "looks" when making predictions.
+A researcher needs to view parametric maps (heat maps) showing quantitative measurements across the slide.
 
-### What Happens
+### Workflow
 
-1. **Parametric map exists**: DICOM Parametric Map instance
-2. **Slim detects**: Finds parametric map series
-3. **Viewer loads**: dicom-microscopy-viewer loads parametric map
-4. **Color mapping**: Float values mapped to colors (heat map)
-5. **Overlay display**: Heat map overlaid on image
-6. **User adjusts**: Can adjust opacity, colormap
+1. **Analysis generates map**: Creates DICOM Parametric Map object
+2. **Map stored**: Saved to DICOMweb server
+3. **User opens slide**: SlideViewer loads slide
+4. **Slim queries maps**: Searches for parametric map objects
+5. **Viewer displays map**: Overlays heat map on slide
 
 ### Technical Details
 
-- **Storage Format**: DICOM Parametric Map
-- **Data Type**: Float arrays (attention scores)
-- **Color Mapping**: Colormap applied (e.g., jet, hot, cool)
-- **Interpolation**: Can interpolate between pyramid levels
-- **Overlay**: Semi-transparent overlay
+- **Format**: DICOM Parametric Map IOD
+- **Storage**: Separate series from images
+- **Reference**: Links to image via `ReferencedSOPInstanceUID`
+- **Values**: Real-world values mapped to colors
 
-### Code Flow
+### How It Works
 
-```typescript
-// Slim: Finds parametric map
-const parametricMap = await findParametricMap({
-  studyInstanceUID,
-  referencedSeriesInstanceUID: slide.seriesInstanceUIDs[0],
-});
-
-// dicom-microscopy-viewer: Loads parametric map
-const parametricMapPyramid = _computeImagePyramid({
-  metadata: parametricMap.metadata,
-});
-
-// dicom-microscopy-viewer: Fits to image pyramid
-const [fittedPyramid] = _fitImagePyramid(parametricMapPyramid, imagePyramid);
-
-// dicom-microscopy-viewer: Creates colormap
-const colormap = createColormap({
-  name: "jet",
-  min: 0,
-  max: 1,
-});
-
-// dicom-microscopy-viewer: Creates overlay layer
-const mapLayer = new TileLayer({
-  source: new TileSource({
-    tileLoadFunction: async (z, y, x) => {
-      const tile = await loadTile(z, y, x);
-      const coloredTile = applyColormap(tile, colormap);
-      return coloredTile;
-    },
-  }),
-  opacity: 0.5,
-});
-
-// Viewer: Adds overlay
-volumeViewer.addOverlay(mapLayer);
-```
+**Technical details**:
+- Parametric maps store quantitative measurements
+- Values mapped to colors (heat map)
+- Can overlay on original image
+- Supports multiple measurement types
 
 ## Use Case 7: Multi-Server Configuration
 
 ### Scenario
 
-Images are stored in one archive, annotations in another.
+An organization stores images in one archive and annotations in another archive.
 
-### What Happens
+### Workflow
 
-1. **Slim configured**: Multiple DICOMweb servers configured
-2. **Client mapping**: Different SOP classes map to different servers
-3. **Image retrieval**: Images loaded from primary server
-4. **Annotation retrieval**: Annotations loaded from secondary server
-5. **Seamless display**: User doesn't notice difference
+1. **Slim configured**: Multiple DICOMweb clients configured
+2. **User opens study**: CaseViewer queries image server
+3. **User selects slide**: SlideViewer loads images from image server
+4. **User views annotations**: SlideViewer queries annotation server
+5. **Annotations overlay**: Displayed on slide
 
 ### Technical Details
 
-- **Client Mapping**: `clientMapping` option in VolumeImageViewer
-- **SOP Class UIDs**: Different UIDs map to different clients
-- **Fallback**: Can try multiple clients if one fails
-- **Transparency**: User doesn't need to know about multiple servers
+- **Client Mapping**: SOP Class UID → DICOMweb client
+- **Images**: Retrieved from image server
+- **Annotations**: Retrieved from annotation server
+- **Fallback**: Can try multiple servers if one fails
 
-### Code Flow
+### How It Works
+
+**Technical details**:
+- Slim maintains mapping of SOP Class UIDs to clients
+- Automatically uses correct client for each object type
+- Supports failover if primary server unavailable
+
+<details>
+<summary><em>Code example (optional - skip if not coding)</em></summary>
 
 ```typescript
-// Slim: Configures multiple clients
+// Slim: Configure multiple clients
 const clients = {
-  default: new DICOMwebClient({ url: "https://images.example.com/dicomweb" }),
-  [StorageClasses.COMPREHENSIVE_3D_SR]: new DICOMwebClient({
-    url: "https://annotations.example.com/dicomweb",
-  }),
+  default: imageClient,
+  [StorageClasses.COMPREHENSIVE_3D_SR]: annotationClient,
+  [StorageClasses.SEGMENTATION]: segmentationClient
 };
 
-// Slim: Creates viewer with client mapping
+// dicom-microscopy-viewer: Uses client mapping
 const volumeViewer = new dmv.viewer.VolumeImageViewer({
   clientMapping: clients,
-  metadata: slide.volumeImages,
+  metadata: slide.volumeImages
 });
-
-// dicom-microscopy-viewer: Uses appropriate client
-// Images → default client
-// Annotations → SR client
 ```
-
-## Summary
-
-These use cases demonstrate:
-
-- **Flexibility**: Viewer handles many scenarios
-- **Integration**: Works with various DICOM types
-- **Performance**: Optimized for large datasets
-- **Usability**: Simple interface for complex operations
-
-Understanding these use cases helps explain why certain features exist and how they're used in practice.
+</details>
 
 ## Next Steps
 
 - [Troubleshooting](./08-troubleshooting.md) - Common issues and solutions
 - [Glossary](./09-glossary.md) - Terminology reference
+

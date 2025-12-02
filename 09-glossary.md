@@ -1,129 +1,118 @@
-# Glossary of Terms
+# Glossary
+
+Terminology reference for pathology imaging and DICOM WSI.
 
 ## A
 
-**Annotation**: A mark or note added to an image, typically indicating a region of interest (ROI) or measurement.
-
-**Additive Blending**: A method of combining multiple image channels where pixel values are added together, commonly used for fluorescence imaging.
-
-## B
-
-**Brightfield**: A type of microscopy illumination where light passes through the specimen, commonly used for H&E stained slides.
-
-**Bulk Annotations**: A DICOM format (Microscopy Bulk Simple Annotations) optimized for storing large numbers of annotations efficiently.
+**Annotation**: A mark or note added to an image. In DICOM WSI, annotations are stored separately from images as DICOM SR (Structured Reporting) objects.
 
 ## C
 
 **Channel**: See Optical Path. In code, optical paths are often referred to as "channels" for brevity.
 
-**Container Identifier**: A DICOM attribute that identifies the physical slide container, used to group images from the same slide.
+**ContainerIdentifier**: DICOM attribute that identifies the physical slide container. Images from the same physical slide share the same `ContainerIdentifier`.
 
-**Concatenation**: A method of splitting a large DICOM instance across multiple files, linked by a Concatenation UID.
-
-**Coordinate System**: A system for specifying positions. In WSI, three systems are used: pixel coordinates, physical coordinates (millimeters), and screen coordinates.
+**Concatenation**: The process of splitting a large DICOM instance across multiple files. The viewer automatically reassembles concatenated instances.
 
 ## D
 
 **DICOM**: Digital Imaging and Communications in Medicine - the international standard for medical imaging.
 
-**DICOMweb**: A RESTful API for accessing DICOM data over HTTP, providing QIDO-RS (query), WADO-RS (retrieve), and STOW-RS (store) services.
+**DICOMweb**: RESTful API for accessing DICOM data over HTTP. Includes QIDO-RS (Query), WADO-RS (Retrieve), and STOW-RS (Store).
 
-**DICOM SR**: DICOM Structured Report - a format for storing structured data, used for annotations and measurements.
+**DimensionOrganizationType**: DICOM attribute indicating how frames are organized. Values include `TILED_FULL` (predictable order) and `TILED_SPARSE` (explicit positions).
 
 ## F
 
-**Frame**: A single image within a multi-frame DICOM object. In WSI, each tile is stored as a frame.
+**Frame**: A single tile in a multi-frame DICOM object. Each frame represents one tile of the image.
 
-**Frame Mapping**: A mapping from tile position (row-column-channel) to frame number in a DICOM instance.
+**Frame Mapping**: A lookup table mapping tile positions (row-column-opticalPath) to frame numbers. Used to construct WADO-RS URLs.
 
-**FrameOfReferenceUID**: A DICOM attribute that links images sharing the same coordinate system.
-
-**Fluorescence**: A type of microscopy where specimens emit light when excited by specific wavelengths.
-
-## H
-
-**H&E**: Hematoxylin and Eosin - the most common staining method in pathology, producing pink and purple colors.
+**FrameOfReferenceUID**: DICOM attribute linking images that share the same coordinate system. All pyramid levels for a slide share the same `FrameOfReferenceUID`.
 
 ## I
 
-**ICC Profile**: International Color Consortium profile - defines color spaces to ensure consistent color display across devices.
+**ICC Profile**: International Color Consortium profile for color correction. Ensures accurate color display across different monitors.
 
-**Image Pyramid**: A multi-resolution representation of an image, with multiple levels at different resolutions.
+**Image Type**: DICOM attribute array indicating image characteristics. Format: `[ORIGINAL/DERIVED, PRIMARY/SECONDARY, VOLUME/THUMBNAIL/OVERVIEW/LABEL]`.
 
-**Image Type**: A DICOM attribute indicating the type of image: VOLUME, THUMBNAIL, OVERVIEW, or LABEL.
+**IOD**: Information Object Definition - a DICOM data structure definition.
 
-## M
+## L
 
-**Metadata**: Structured information about an image, stored in DICOM format.
-
-**Multi-frame**: A DICOM object containing multiple frames (images), used for storing tiled WSI images.
-
-**Multiplexed Imaging**: Imaging techniques that capture multiple channels simultaneously, such as CycIF (Cyclic Immunofluorescence).
+**LABEL**: Image type for the physical slide label (patient ID, dates, etc.). Stored as a separate DICOM instance.
 
 ## O
 
-**Optical Path**: A way the slide was imaged, such as brightfield or a specific fluorescence channel. Identified by OpticalPathIdentifier.
+**Optical Path**: A different way the slide was imaged (e.g., brightfield, fluorescence channel). Stored as separate frames within the same DICOM instance, identified by `OpticalPathIdentifier`.
 
-**OpenLayers**: A JavaScript mapping library used by dicom-microscopy-viewer for tile-based rendering.
+**OpticalPathIdentifier**: Unique identifier for an optical path within a DICOM instance.
 
-**Overview Image**: A low-resolution image providing an overview of the entire slide.
+**OVERVIEW**: Image type for low-resolution navigation images (1,000-5,000 pixels wide). Used as a minimap within the viewer.
 
 ## P
 
-**PACS**: Picture Archiving and Communication System - a system for storing and retrieving medical images.
+**Pixel Spacing**: Physical size of each pixel (e.g., 0.00025 mm = 0.25 microns). Used to convert between pixel and physical coordinates.
 
-**Parametric Map**: A DICOM format for storing quantitative data as images (e.g., attention maps, saliency maps).
+**Pyramid**: Multi-resolution image structure with multiple levels at different zoom factors. Enables rapid zooming without scaling large images.
 
-**Pixel Spacing**: The physical size of each pixel, typically in millimeters (e.g., 0.00025 mm = 0.25 microns).
-
-**Pyramid Level**: A single resolution level in an image pyramid, with Level 0 being the highest resolution.
+**PyramidUID**: Optional DICOM attribute identifying images that belong to the same pyramid.
 
 ## Q
 
-**QIDO-RS**: Query based on ID for DICOM Objects - RESTful Service. A DICOMweb service for searching/querying DICOM objects.
+**QIDO-RS**: Query based on ID for DICOM Objects - RESTful Service. DICOMweb service for searching studies, series, and instances.
 
 ## R
 
-**ROI**: Region of Interest - an annotated area on an image, stored as vector graphics (polygon, ellipse, etc.).
+**ROI**: Region of Interest - an annotation marking an area of interest on an image (polygon, circle, point).
 
 ## S
 
-**SCOORD3D**: 3D Spatial Coordinates - a DICOM format for storing 3D coordinates, used for ROI annotations.
+**SCOORD3D**: 3D Spatial Coordinates - DICOM data structure for storing 3D coordinates.
 
-**Segmentation**: A DICOM format for storing binary masks, indicating which pixels belong to which segments (e.g., nuclei, tissue).
+**SOP Class UID**: Service-Object Pair Class Unique Identifier. Identifies the type of DICOM object (e.g., `1.2.840.10008.5.1.4.1.1.77.1.6` for VL Whole Slide Microscopy Image).
 
-**Series**: A collection of related DICOM instances, identified by SeriesInstanceUID.
+**SOPInstanceUID**: Service-Object Pair Instance Unique Identifier. Unique identifier for a specific DICOM instance.
 
-**Slim**: The viewer application built on top of dicom-microscopy-viewer.
+**STOW-RS**: Store Over the Web - RESTful Service. DICOMweb service for storing new DICOM objects.
 
-**SOP Instance**: A Service-Object Pair instance - a single DICOM object, identified by SOPInstanceUID.
+**SeriesInstanceUID**: Unique identifier for a DICOM series (collection of related instances).
 
-**Study**: A collection of related series, identified by StudyInstanceUID.
-
-**STOW-RS**: Store Over the Web - RESTful Service. A DICOMweb service for storing DICOM objects.
+**StudyInstanceUID**: Unique identifier for a DICOM study (collection of related series).
 
 ## T
 
-**Tile**: A small rectangular portion of an image, typically 256x256 or 512x512 pixels. Tiles are loaded on-demand as the user pans and zooms.
+**THUMBNAIL**: Image type for small preview images (200-500 pixels wide). Used for browsing slide lists.
 
-**Tiling**: The process of dividing an image into tiles for efficient storage and retrieval.
+**Tile**: A small rectangular region of an image (typically 256×256 or 512×512 pixels). Stored as a separate frame in a multi-frame DICOM object.
 
-**Total Pixel Matrix**: The entire image dimensions (TotalPixelMatrixColumns x TotalPixelMatrixRows), before tiling.
+**TILED_FULL**: Dimension organization type where frames are organized in a predictable order (optical paths → rows → columns).
 
-**Transfer Syntax**: A DICOM attribute indicating how pixel data is encoded (e.g., JPEG, JPEG 2000, uncompressed).
+**TILED_SPARSE**: Dimension organization type where each frame's position is explicitly stored in `PlanePositionSlideSequence`.
+
+**TotalPixelMatrixColumns**: Total width of the entire slide image in pixels.
+
+**TotalPixelMatrixRows**: Total height of the entire slide image in pixels.
 
 ## V
 
-**VNA**: Vendor Neutral Archive - a system for storing medical images in a vendor-independent format.
+**VL Whole Slide Microscopy Image**: DICOM Information Object Definition (IOD) for whole slide imaging. Defined in DICOM Supplement 145.
 
-**VOLUME**: The main high-resolution image data in a WSI dataset.
-
-**VL Whole Slide Microscopy Image**: The DICOM standard (SOP Class) for whole slide imaging.
+**VOLUME**: Image type for high-resolution pyramid images. Multiple VOLUME instances at different resolutions form the pyramid structure.
 
 ## W
 
-**WADO-RS**: Web Access to DICOM Objects - RESTful Service. A DICOMweb service for retrieving DICOM objects and pixel data.
+**WADO-RS**: Web Access to DICOM Objects - RESTful Service. DICOMweb service for retrieving metadata and pixel data.
 
-**Whole Slide Imaging (WSI)**: The process of digitizing entire glass slides at high resolution, also known as digital pathology.
+**WSI**: Whole Slide Imaging - the process of digitizing entire microscope slides at high resolution.
 
-**WSI**: See Whole Slide Imaging.
+## Z
+
+**Z-Plane**: A focal plane at a specific depth. Multiple Z-planes can be captured for thick specimens. Each Z-plane is stored as a separate DICOM instance.
+
+## References
+
+- [DICOM WSI Official Documentation](https://dicom.nema.org/dicom/dicomwsi/)
+- [DICOM Standard](http://www.dicomstandard.org/current)
+- DICOM Supplement 145 - Whole Slide Imaging in Pathology
+

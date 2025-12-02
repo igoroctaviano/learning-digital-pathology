@@ -1,6 +1,6 @@
 # DICOM WSI Format Deep Dive
 
-> **Note**: This document explains DICOM concepts for WSI. Code examples are included but marked as optional - you can skip them and focus on the conceptual explanations if you're not coding.
+> **Note**: This document explains DICOM concepts for WSI based on [DICOM Supplement 145](https://dicom.nema.org/dicom/dicomwsi/). Code examples are included but marked as optional - you can skip them and focus on the conceptual explanations if you're not coding.
 
 ## DICOM Structure Overview
 
@@ -53,6 +53,30 @@ Example: `["ORIGINAL", "PRIMARY", "VOLUME"]`
 
 **Key point**: VOLUME images form the pyramid. Multiple VOLUME instances at different resolutions create the pyramid structure. THUMBNAIL images may be included as a fallback if no equivalent VOLUME image exists at that resolution. Other image types (OVERVIEW, LABEL) are standalone images, not part of the pyramid.
 
+## Image Organization: Single Frame vs. Tiled
+
+According to the [official DICOM WSI documentation](https://dicom.nema.org/dicom/dicomwsi/), there are two ways to organize image data:
+
+### Single Frame Organization
+
+In a single frame organization, pixels are stored in rows extending across the entire image:
+
+- Pixels stored starting from upper left corner
+- Stored row by row, like text on a page
+- **Limitation**: To view a small region, a much larger region must be loaded
+
+This is inefficient for WSI because accessing any subregion requires loading large amounts of data.
+
+### Tiled Organization
+
+In a tiled organization, pixels are stored in square or rectangular tiles:
+
+- Pixels stored starting from upper left corner
+- Stored tile by tile, like pages in a book
+- **Benefit**: Random access to any subregion without loading the entire image
+
+**DICOM WSI uses tiled organization** to enable efficient panning and zooming.
+
 ## Image Pyramid Structure
 
 ### How Pyramids Work
@@ -60,16 +84,17 @@ Example: `["ORIGINAL", "PRIMARY", "VOLUME"]`
 A pyramid consists of multiple DICOM instances, each representing a different resolution level:
 
 ```
-Level 0 (highest resolution): 100,000 x 100,000 pixels
-Level 1:                      50,000 x 50,000 pixels
-Level 2:                      25,000 x 25,000 pixels
-Level 3:                      12,500 x 12,500 pixels
+Level 0 (highest resolution): 80,000 x 60,000 pixels (0.25 mpp)
+Level 1:                      40,000 x 30,000 pixels (0.5 mpp)
+Level 2:                      20,000 x 15,000 pixels (1.0 mpp)
+Level 3:                      10,000 x 7,500 pixels (2.5 mpp)
+Level 4:                       5,000 x 3,750 pixels (5.0 mpp)
 ```
 
 All levels share:
 
-- Same `FrameOfReferenceUID`
-- Same `ContainerIdentifier`
+- Same `FrameOfReferenceUID` (same coordinate system)
+- Same `ContainerIdentifier` (same physical slide)
 - Different `TotalPixelMatrixColumns` and `TotalPixelMatrixRows`
 
 ### Computing Pyramid Levels
@@ -82,8 +107,8 @@ The viewer automatically computes pyramid structure from metadata. The process:
    - Same `ContainerIdentifier` (same physical slide)
    - Same number of optical paths/channels
 3. **Calculate pyramid properties** for each level:
-   - **Tile grid size**: How many tiles per row/column (e.g., 1000x1000 tiles)
-   - **Resolution factor**: Zoom level relative to base (e.g., Level 1 = 2x zoom out)
+   - **Tile grid size**: How many tiles per row/column (e.g., 1000×1000 tiles)
+   - **Resolution factor**: Zoom level relative to base (e.g., Level 1 = 2× zoom out)
    - **Pixel spacing**: Physical size per pixel (e.g., 0.25 microns)
 
 **Result**: A pyramid structure with multiple resolution levels, each ready for tile-based rendering.
@@ -164,6 +189,36 @@ function createFrameMapping(metadata) {
 ```
 </details>
 
+## Coordinate Systems
+
+According to the [DICOM WSI documentation](https://dicom.nema.org/dicom/dicomwsi/), WSI uses a **slide-based coordinate system**:
+
+### Slide-Based Coordinates (X, Y, Z)
+
+- **Origin**: Top-left corner of the slide (label on left side)
+- **X-axis**: Horizontal, increasing left to right
+- **Y-axis**: Vertical, increasing top to bottom
+- **Z-axis**: Perpendicular to slide surface, increasing upward (height above slide surface)
+
+**Important**: The slide-based coordinate system is rotated 180° from the conventional image matrix (row, column) orientation.
+
+### Image Matrix Coordinates (Row, Column)
+
+- **Origin**: Upper-left corner of image matrix
+- **Row**: Vertical position (increasing downward)
+- **Column**: Horizontal position (increasing rightward)
+
+### Coordinate Transformations
+
+To convert between coordinate systems:
+
+- **Pixel → Physical**: Multiply pixel coordinates by `PixelSpacing`
+  - Example: Pixel (1000, 2000) × spacing (0.00025 mm) = Physical (0.25 mm, 0.5 mm)
+- **Physical → Pixel**: Divide physical coordinates by `PixelSpacing`
+  - Example: Physical (0.25 mm, 0.5 mm) ÷ spacing (0.00025 mm) = Pixel (1000, 2000)
+
+**Note**: The coordinate system origin is not intended to be reproducible across different mountings of a slide, even on the same equipment. It's a local reference system.
+
 ## Optical Paths (Channels)
 
 WSI can have multiple **optical paths** (channels) representing different ways the slide was imaged:
@@ -187,6 +242,17 @@ WSI can have multiple **optical paths** (channels) representing different ways t
 - Each tile position has 3 frames (one per optical path)
 - Frame mapping: `"1-1-0"` → DAPI (optical path "0"), `"1-1-1"` → FITC (optical path "1"), `"1-1-2"` → Rhodamine (optical path "2")
 - All optical paths retrieved from the same instance: `/instances/{SOPInstanceUID}/frames/{FrameNumber}`
+
+## Z-Planes (Multiple Focal Planes)
+
+Some specimens are thicker than the depth of field, requiring multiple focal planes:
+
+- Each Z-plane is stored as a **separate DICOM instance** (different `SOPInstanceUID`)
+- Z-value represents **nominal physical height** (in μm) above the slide surface
+- Z-planes can track curved surfaces (specimen thickness varies)
+- Z-value has meaning only in a local context (relative depths, not absolute measurements)
+
+**Use case**: Viewing different depths of a thick specimen without refocusing.
 
 ## DICOMweb: How Images are Retrieved
 
@@ -212,7 +278,25 @@ WSI images are typically compressed using:
 
 The viewer supports all these formats and decodes them client-side.
 
+## Concatenation
+
+Large images may be split across multiple DICOM files (concatenation):
+
+- Parts linked by `SOPInstanceUIDOfConcatenationSource`
+- Identified by `ConcatenationUID` and `InConcatenationNumber`
+- Frame offset tracked by `ConcatenationFrameOffsetNumber`
+
+The viewer automatically detects and reassembles concatenated instances.
+
 ## Next Steps
 
 - [How dicom-microscopy-viewer Works](./03-dicom-microscopy-viewer-engine.md) - The rendering engine
 - [How Slim Viewer Works](./04-slim-viewer-application.md) - The application layer
+
+## References
+
+- [DICOM WSI Official Documentation](https://dicom.nema.org/dicom/dicomwsi/)
+- DICOM Supplement 145 - Whole Slide Imaging in Pathology
+- PS3.3 A.32.8 VL Whole Slide Microscopy Image IOD
+- PS3.3 C.7.6.17.3 Spatial Location and Optical Path of Tiled Images
+

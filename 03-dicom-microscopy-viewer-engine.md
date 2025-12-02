@@ -7,43 +7,26 @@
 `dicom-microscopy-viewer` is a **vanilla JavaScript library** (no framework dependencies) that provides the core rendering capabilities for displaying DICOM WSI images. Think of it as the "engine" - it handles the low-level work of:
 
 - Parsing DICOM metadata
-- Computing image pyramids
-- Loading and decoding tiles
-- Rendering tiles on a map (using OpenLayers)
+- Computing pyramid structures
+- Loading tiles on-demand via DICOMweb
+- Decoding compressed pixel data
+- Rendering tiles using OpenLayers
 - Managing coordinate transformations
+- Handling ICC profiles for color correction
 
 ## Architecture
 
-### Core Components
+The library is organized into key modules:
 
-1. **Metadata Parsing** (`metadata.js`)
-
-   - Parses DICOM JSON metadata
-   - Creates `VLWholeSlideMicroscopyImage` objects
+- **Metadata**: Parses and validates DICOM VL Whole Slide Microscopy Image metadata
+- **Pyramid**: Computes multi-resolution pyramid structure
+- **Viewer**: Main rendering components
    - Groups images by type (VOLUME, THUMBNAIL, OVERVIEW, LABEL)
-
-2. **Pyramid Computation** (`pyramid.js`)
-
-   - Computes pyramid structure from multiple DICOM instances
-   - Creates frame mappings (tile position → frame number)
-   - Calculates resolutions and extents
-
-3. **Viewers** (`viewer.js`)
-
    - `VolumeImageViewer`: Main viewer for VOLUME images
-   - `OverviewImageViewer`: Static viewer for OVERVIEW images
-   - `LabelImageViewer`: Static viewer for LABEL images
-
-4. **Decoding** (`decode.js`)
-
-   - Decodes compressed pixel data (JPEG, JPEG 2000, JPEG-LS)
-   - Handles color space transformations
-   - Applies ICC profiles for color correction
-
-5. **Annotations** (`annotation.js`, `roi.js`)
-   - Manages ROI (Region of Interest) annotations
-   - Handles vector graphics (polygons, ellipses, etc.)
-   - Supports DICOM SR and Bulk Annotations
+   - `LabelImageViewer`: Viewer for LABEL images
+   - `OverviewImageViewer`: Viewer for OVERVIEW images
+   - `ThumbnailImageViewer`: Viewer for THUMBNAIL images
+- **Utils**: Helper functions for coordinate transformations, frame mapping, etc.
 
 ## VolumeImageViewer: The Main Viewer
 
@@ -61,13 +44,16 @@ When creating a `VolumeImageViewer`, you provide:
 - **Preload**: Whether to preload lower resolution levels for faster initial zoom
 - **Cache size**: How many tiles to keep in memory (default: 1000)
 - **Skip thumbnails**: Whether to exclude THUMBNAIL images from the pyramid
+- **Controls**: UI controls to include (e.g., "overview", "position")
+- **Error interceptor**: Callback for handling errors
 
 **What happens during initialization**:
 1. **Validates metadata**: Ensures all images are valid VOLUME instances
-2. **Computes pyramid**: Analyzes metadata to build the multi-resolution structure
-3. **Sets up DICOMweb client(s)**: Configures connection(s) to retrieve data
-4. **Initializes OpenLayers map**: Creates the tile-based rendering surface
-5. **Creates tile loaders**: Sets up functions to load tiles on-demand for each pyramid level
+2. **Groups by optical path**: Separates monochrome and color images by optical path identifier
+3. **Computes pyramid**: Analyzes metadata to build the multi-resolution structure (see below)
+4. **Sets up DICOMweb client(s)**: Configures connection(s) to retrieve data
+5. **Initializes OpenLayers map**: Creates the tile-based rendering surface
+6. **Creates tile loaders**: Sets up functions to load tiles on-demand for each pyramid level
 
 <details>
 <summary><em>Code example (optional - skip if not coding)</em></summary>
@@ -90,6 +76,68 @@ class VolumeImageViewer {
     // Sets up OpenLayers map for tile rendering
     this.map = new Map({ ... });
   }
+}
+```
+</details>
+
+### Pyramid Computation
+
+The pyramid computation process (implemented in `_computeImagePyramid`):
+
+1. **Sorts instances by size**: Arranges from smallest to largest (lowest to highest resolution)
+2. **Validates consistency**: Ensures all instances share:
+   - Same `FrameOfReferenceUID` (same coordinate system)
+   - Same `ContainerIdentifier` (same physical slide)
+   - Same number of optical paths/channels
+3. **Handles concatenation**: Detects and reassembles instances split across multiple files
+4. **Computes frame mappings**: Creates tile-to-frame mappings for each pyramid level
+5. **Calculates properties**: For each level, computes:
+   - Resolution factors (zoom levels)
+   - Tile grid dimensions
+   - Pixel spacings
+   - Physical sizes
+   - Extents (bounding boxes)
+
+**Result**: A structured pyramid object ready for multi-resolution rendering.
+
+<details>
+<summary><em>Code example (optional - skip if not coding)</em></summary>
+
+```javascript
+// Simplified pyramid computation
+function _computeImagePyramid({ metadata }) {
+  // Sort instances by size (smallest to largest)
+  metadata.sort((a, b) => {
+    const sizeDiff = a.TotalPixelMatrixColumns - b.TotalPixelMatrixColumns;
+    if (sizeDiff === 0) {
+      // Handle concatenation parts
+      if (a.ConcatenationFrameOffsetNumber !== undefined) {
+        return a.ConcatenationFrameOffsetNumber - b.ConcatenationFrameOffsetNumber;
+      }
+    }
+    return sizeDiff;
+  });
+  
+  // Validate consistency
+  const base = metadata[0];
+  metadata.forEach(level => {
+    if (level.FrameOfReferenceUID !== base.FrameOfReferenceUID) {
+      throw new Error('Pyramid levels must share FrameOfReferenceUID');
+    }
+    if (level.ContainerIdentifier !== base.ContainerIdentifier) {
+      throw new Error('Pyramid levels must share ContainerIdentifier');
+    }
+  });
+  
+  // Compute properties for each level
+  return {
+    metadata: pyramidMetadata,      // DICOM instances for each level
+    frameMappings: pyramidFrameMappings, // Tile-to-frame mappings
+    resolutions: pyramidResolutions,     // Zoom factors
+    gridSizes: pyramidGridSizes,         // Tile grid dimensions
+    pixelSpacings: pyramidPixelSpacings, // Physical pixel sizes
+    numberOfChannels: numberOfChannels   // Number of optical paths
+  };
 }
 ```
 </details>
@@ -149,11 +197,13 @@ async function loadTile(z, y, x, opticalPathId) {
 
 ### Key Features
 
-1. **Lazy Loading**: Tiles are only loaded when visible in the viewport
-2. **Caching**: Recently loaded tiles are cached to avoid re-fetching
-3. **Multi-resolution**: Automatically switches between pyramid levels based on zoom
+1. **Multi-resolution rendering**: Automatically switches between pyramid levels based on zoom
+2. **On-demand tile loading**: Only loads visible tiles
+3. **Tile caching**: Caches recently viewed tiles to avoid re-downloading
 4. **Multi-channel**: Supports multiple optical paths/channels
-5. **Coordinate Transformation**: Converts between pixel coordinates and physical coordinates (millimeters)
+5. **Coordinate transformations**: Converts between pixel, physical (slide), and screen coordinates
+6. **ICC profiles**: Applies color correction for accurate color display
+7. **Event publishing**: Publishes events for frame loading, viewport changes, etc.
 
 ## Using the Library
 
@@ -218,16 +268,26 @@ viewer.render({ container: "viewport" });
 
 The library is **purposefully minimal** and does NOT include:
 
-- ❌ User interface (buttons, menus, etc.)
-- ❌ Study/series selection
-- ❌ Patient information display
-- ❌ Annotation creation UI
-- ❌ Authentication/authorization
-- ❌ Routing/navigation
+- **UI components**: No buttons, menus, or controls (except basic built-in controls)
+- **Study/series management**: Doesn't browse studies or series
+- **Authentication**: Doesn't handle OAuth or other auth mechanisms
+- **Annotation creation**: Can display annotations but doesn't create them
+- **Multi-server management**: Basic support but not full multi-server workflows
+- **Application framework**: Not a complete application
 
-These are handled by the application layer (Slim).
+This is intentional - it's a **rendering engine**, not a complete viewer application.
+
+## OpenLayers Integration
+
+dicom-microscopy-viewer uses [OpenLayers](https://openlayers.org/) for tile-based rendering:
+
+- **Why OpenLayers?**: Provides robust tile management, multi-resolution support, and pan/zoom capabilities
+- **Tile sources**: Creates custom tile sources that load tiles via DICOMweb
+- **Coordinate systems**: Uses DICOM projection for accurate spatial representation
+- **Interactions**: Built-in pan, zoom, and selection tools
 
 ## Next Steps
 
 - [How Slim Viewer Works](./04-slim-viewer-application.md) - See how Slim uses this engine
 - [Architecture Overview](./05-architecture-overview.md) - How everything fits together
+

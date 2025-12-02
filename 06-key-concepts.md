@@ -1,25 +1,26 @@
-# Key Concepts Explained
+# Key Concepts
+
+This document explains important technical concepts used throughout the pathology viewer system.
 
 ## 1. Image Pyramids
 
 ### What is a Pyramid?
 
-An image pyramid is a multi-resolution representation of an image. Think of it like a pyramid:
+A multi-resolution pyramid stores the same image at multiple zoom levels:
 
-- **Base (Level 0)**: Highest resolution, most detail
-- **Level 1**: 2x smaller (half resolution)
-- **Level 2**: 4x smaller
-- **Level 3**: 8x smaller (thumbnail)
+- **Level 0** (base): Highest resolution (e.g., 0.25 mpp / "40X")
+- **Level 1**: 2× smaller (e.g., 0.5 mpp / "20X")
+- **Level 2**: 4× smaller (e.g., 1.0 mpp / "10X")
+- **Level 3**: 8× smaller (e.g., 2.5 mpp / "4X")
+- **Level 4**: 16× smaller (e.g., 5.0 mpp / "2X")
 
 ### Why Pyramids?
 
-**Problem**: A whole slide image can be 100,000 x 100,000 pixels = 10 billion pixels. Loading this all at once is impossible.
+According to the [official DICOM WSI documentation](https://dicom.nema.org/dicom/dicomwsi/), pyramids enable:
 
-**Solution**: Store multiple resolutions:
-
-- When zoomed out: Load low-resolution overview
-- When zoomed in: Load high-resolution tiles
-- Only load what's visible
+- **Rapid zooming**: Switch between resolution levels without scaling large images
+- **Efficient storage**: Pre-computed levels avoid runtime computation
+- **Fast initial display**: Lower resolution loads quickly for overview
 
 ### How It's Computed
 
@@ -62,7 +63,7 @@ const pyramid = {
 
 ### What is Tiling?
 
-Even at a single pyramid level, loading the entire image is too large. Instead, images are divided into **tiles** (typically 256x256 or 512x512 pixels).
+Even at a single pyramid level, loading the entire image is too large. Instead, images are divided into **tiles** (typically 256×256 or 512×512 pixels).
 
 ### Tile Grid
 
@@ -71,7 +72,7 @@ Even at a single pyramid level, loading the entire image is too large. Instead, 
 │  1  │  2  │  3  │  4  │  Row 1
 ├─────┼─────┼─────┼─────┤
 │  5  │  6  │  7  │  8  │  Row 2
-├─────┼─────┼─────┼─────┤
+├─────┼─────┼─────┤
 │  9  │ 10  │ 11  │ 12  │  Row 3
 └─────┴─────┴─────┴─────┘
 ```
@@ -89,11 +90,24 @@ Example:
 
 ## 3. Coordinate Systems
 
-### Three Coordinate Systems
+### Pixel Coordinates
 
-1. **Pixel Coordinates**: `(x, y)` in pixels (0 to TotalPixelMatrixColumns)
-2. **Physical Coordinates**: `(x, y)` in millimeters on the slide
-3. **Screen Coordinates**: `(x, y)` in pixels on the screen
+- **Origin**: Upper-left corner of image matrix
+- **Row**: Vertical position (increasing downward)
+- **Column**: Horizontal position (increasing rightward)
+- **Units**: Pixels
+
+### Physical Coordinates (Slide-Based)
+
+According to the [DICOM WSI documentation](https://dicom.nema.org/dicom/dicomwsi/):
+
+- **Origin**: Top-left corner of slide (label on left)
+- **X-axis**: Horizontal, increasing left to right
+- **Y-axis**: Vertical, increasing top to bottom
+- **Z-axis**: Perpendicular to slide surface (height above slide)
+- **Units**: Millimeters (mm) or micrometers (μm)
+
+**Important**: Slide-based coordinates are rotated 180° from image matrix coordinates.
 
 ### Transformations
 
@@ -118,15 +132,7 @@ const pixelY = physicalY / pixelSpacing[1];
 ```
 </details>
 
-### Why This Matters
-
-- **Annotations**: Stored in physical coordinates (millimeters)
-- **Display**: Converted to pixel coordinates for rendering
-- **Precision**: Physical coordinates are device-independent
-
 ## 4. Optical Paths (Channels)
-
-### What are Optical Paths?
 
 An optical path represents a different way the slide was imaged:
 
@@ -144,7 +150,7 @@ Each optical path is:
 - Stored as separate frames in the same multi-frame DICOM object
 - Can be displayed independently or blended
 
-### Channel Blending
+### Display Modes
 
 For fluorescence images, multiple optical paths can be:
 
@@ -154,13 +160,13 @@ For fluorescence images, multiple optical paths can be:
 
 ## 5. DICOMweb
 
-### What is DICOMweb?
+DICOMweb is a RESTful API for accessing DICOM data over HTTP.
 
-DICOMweb is a RESTful API for accessing DICOM data over HTTP. It provides three main services:
+### Services
 
-1. **QIDO-RS** (Query): Search for studies/series/instances
-2. **WADO-RS** (Retrieve): Get metadata and pixel data
-3. **STOW-RS** (Store): Store new DICOM objects
+- **QIDO-RS** (Query): Search for studies/series/instances
+- **WADO-RS** (Retrieve): Retrieve metadata and pixel data
+- **STOW-RS** (Store): Store new DICOM objects
 
 ### Example URLs
 
@@ -187,107 +193,40 @@ GET /studies/{StudyInstanceUID}/series/{SeriesInstanceUID}/instances/{SOPInstanc
 ```
 </details>
 
-### Why DICOMweb?
-
-- **Standard**: Works with existing PACS/VNA systems
-- **HTTP-based**: Easy to use, firewall-friendly
-- **Scalable**: Can handle large datasets
-- **Interoperable**: Works across vendors
-
 ## 6. Annotations
 
-### Types of Annotations
+According to the [DICOM WSI documentation](https://dicom.nema.org/dicom/dicomwsi/), annotations are stored separately from images:
 
-1. **ROI (Region of Interest)**: Vector graphics
+### Types
 
-   - Point
-   - Polygon
-   - Ellipse
-   - Polyline
+- **ROI (Region of Interest)**: Polygons, circles, points
+- **Segmentation**: Binary masks categorizing regions
+- **Structured Reporting**: Measurements, observations, findings
+- **Presentation States**: Display parameters (blending, pseudocoloring)
 
-2. **Segmentation**: Binary masks
+### Storage
 
-   - Pixels marked as foreground/background
-   - Used for nuclei segmentation, tissue segmentation
-
-3. **Parametric Maps**: Heat maps
-
-   - Attention maps
-   - Saliency maps
-   - Class activation maps
-
-4. **Bulk Annotations**: Large collections
-   - Thousands of cell annotations
-   - Efficient storage format
-
-### Storage Formats
-
-- **DICOM SR**: Structured reports (TID 1500, TID 1410)
-- **DICOM Segmentation**: Binary masks
-- **DICOM Parametric Map**: Float arrays
-- **DICOM Bulk Annotations**: Optimized for many annotations
-
-### Coordinate Storage
-
-Annotations are stored in **physical coordinates** (millimeters):
-
-- Device-independent
-- Precise measurements
-- Converted to pixel coordinates for display
+- **Separate Series**: Different modality than images
+- **Reference Images**: Link to images via `ReferencedSOPInstanceUID`
+- **Physical Coordinates**: Stored in slide-based coordinates, not pixels
 
 ## 7. Compression
 
-### Why Compress?
+WSI images are compressed to reduce storage and transfer:
 
-Uncompressed WSI images are huge:
+- **JPEG**: Lossy, good for color images
+- **JPEG 2000**: Better compression, supports lossless
+- **JPEG-LS**: Lossless compression
 
-- 100,000 x 100,000 x 3 bytes = 30 GB per slide
-- Compression reduces to ~1-5 GB
+The viewer supports all formats and decodes them client-side.
 
-### Compression Formats
+## 8. Concatenation
 
-1. **JPEG**: Lossy, good for color images
+Large images may be split across multiple DICOM files:
 
-   - Transfer Syntax: `1.2.840.10008.1.2.4.50`
-   - Good compression ratio
-   - Some quality loss
-
-2. **JPEG 2000**: Better compression
-
-   - Transfer Syntax: `1.2.840.10008.1.2.4.90` (lossless)
-   - Transfer Syntax: `1.2.840.10008.1.2.4.91` (lossy)
-   - Better quality than JPEG
-   - Supports lossless
-
-3. **JPEG-LS**: Lossless compression
-   - Transfer Syntax: `1.2.840.10008.1.2.4.80` (lossless)
-   - Transfer Syntax: `1.2.840.10008.1.2.4.81` (near-lossless)
-   - No quality loss
-   - Good for medical images
-
-### Decoding
-
-The viewer decodes compressed frames client-side:
-
-- Uses WebAssembly for performance
-- Supports all three formats
-- Handles color space transformations
-
-## 8. Concatenations
-
-### What are Concatenations?
-
-Sometimes a single DICOM instance is split across multiple files:
-
-- **Concatenation UID**: Links related parts
-- **InConcatenationNumber**: Part number (1, 2, 3, ...)
-- **ConcatenationFrameOffsetNumber**: Frame offset
-
-### Why Split?
-
-- **File size limits**: Some systems limit file sizes
-- **Network efficiency**: Can transfer parts in parallel
-- **Storage**: Easier to manage smaller files
+- **Linked**: Parts linked by `SOPInstanceUIDOfConcatenationSource`
+- **Identified**: By `ConcatenationUID` and `InConcatenationNumber`
+- **Offset**: Frame offset tracked by `ConcatenationFrameOffsetNumber`
 
 ### Reassembly
 
@@ -316,51 +255,21 @@ if (metadata.SOPInstanceUIDOfConcatenationSource) {
 
 ## 9. ICC Profiles
 
-### What are ICC Profiles?
+ICC (International Color Consortium) profiles ensure accurate color display:
 
-ICC (International Color Consortium) profiles define color spaces:
+- **Color correction**: Adjusts colors to match original scanner output
+- **Standardization**: Ensures consistent colors across displays
+- **Optional**: Can be disabled for performance
 
-- Ensures consistent color display
-- Corrects for scanner variations
-- Important for accurate diagnosis
+## 10. Event Publishing
 
-### How They're Used
+The viewer publishes events for integration:
 
-1. **Stored in DICOM**: In `OpticalPathSequence.ICCProfile`
-2. **Retrieved**: Fetched from DICOMweb if needed
-3. **Applied**: Used to transform pixel data
-4. **Display**: Ensures accurate colors
+- **Frame loading**: Started, completed, error
+- **Viewport changes**: Pan, zoom, rotation
+- **Selection**: ROI selection, measurement
 
-### Why Important?
-
-- **Diagnosis**: Color accuracy matters for pathology
-- **Consistency**: Same slide looks same on different displays
-- **Standards**: Required for some use cases
-
-## 10. Events and Interactions
-
-### Viewer Events
-
-The viewer publishes events for:
-
-- **Frame loading**: Started, ended, error
-- **Viewport changes**: Pan, zoom
-- **Selection**: ROI selected
-- **Annotations**: Added, removed, modified
-
-### Event Flow
-
-```
-User interaction
-    ↓
-OpenLayers event
-    ↓
-dicom-microscopy-viewer processes
-    ↓
-Publishes custom event
-    ↓
-Slim listens and updates UI
-```
+Slim uses these events to update the UI (loading indicators, position displays, etc.).
 
 ### Example Events
 
@@ -389,20 +298,8 @@ EVENT.FRAME_LOADING_ERROR;
 ```
 </details>
 
-## Summary
-
-These concepts work together:
-
-- **Pyramids** enable multi-resolution viewing
-- **Tiling** enables efficient loading
-- **Coordinates** enable precise annotations
-- **DICOMweb** enables data access
-- **Compression** enables storage efficiency
-- **Annotations** enable analysis and documentation
-
-Understanding these concepts helps explain how the viewer works and why certain design decisions were made.
-
 ## Next Steps
 
 - [Common Use Cases](./07-common-use-cases.md) - Real-world scenarios
 - [Troubleshooting](./08-troubleshooting.md) - Common issues and solutions
+

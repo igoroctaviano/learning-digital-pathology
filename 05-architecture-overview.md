@@ -6,120 +6,74 @@
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                         User Browser                        │
-├─────────────────────────────────────────────────────────────┤
-│                                                             │
-│  ┌──────────────────────────────────────────────────────┐   │
-│  │              Slim (React Application)                │   │
-│  │  ┌──────────────┐  ┌──────────────┐  ┌───────────--┐ │   │
-│  │  │ CaseViewer   │  │ SlideViewer  │  │ UI Controls │ │   │
-│  │  └──────┬───────┘  └──────┬───────┘  └───────────--┘ │   │
-│  │         │                 │                          │   │
-│  │         └──────────┬──────┘                          │   │
-│  │                    │                                 │   │
-│  │  ┌─────────────────▼──────────────────────────────┐  │   │
-│  │  │    dicom-microscopy-viewer (Library)           │  │   │
-│  │  │  ┌──────────────────────────────────────────┐  │  │   │
-│  │  │  │ VolumeImageViewer                        │  │  │   │
-│  │  │  │  - Pyramid computation                   │  │  │   │
-│  │  │  │  - Tile loading                          │  │  │   │
-│  │  │  │  - OpenLayers rendering                  │  │  │   │
-│  │  │  └──────────────────────────────────────────┘  │  │   │
-│  │  └────────────────────────────────────────────────┘  │   │
-│  └──────────────────────────────────────────────────────┘   │
-│                    │                                        │
-│                    │ HTTP (DICOMweb)                        │
-│                    ▼                                        │
-└─────────────────────────────────────────────────────────────┘
-                    │
-                    ▼
-┌───────────────────────────────────────────────────────────────┐
-│              DICOMweb Server (PACS/VNA)                       │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐         │
-│  │   QIDO-RS    │  │   WADO-RS    │  │   STOW-RS    │         │
-│  │   (Query)    │  │  (Retrieve)  │  │   (Store)    │         │
-│  └──────────────┘  └──────────────┘  └──────────────┘         │
-└───────────────────────────────────────────────────────────────┘
-```
-
-## Data Flow
-
-### 1. Initial Load
-
-```
-User → Slim → DICOMweb (QIDO-RS) → Metadata
-                ↓
-         Slim organizes slides
-                ↓
-         User selects slide
-                ↓
-         Slim → dicom-microscopy-viewer
-                ↓
-         Viewer computes pyramid
-                ↓
-         Viewer renders initial view
-```
-
-### 2. Tile Loading (On-Demand)
-
-```
-User pans/zooms
-    ↓
-OpenLayers detects visible tiles
-    ↓
-dicom-microscopy-viewer requests tiles
-    ↓
-DICOMweb (WADO-RS) retrieves frames
-    ↓
-Tiles decoded (JPEG/JPEG2000)
-    ↓
-Tiles rendered on map
-```
-
-### 3. Annotation Creation
-
-```
-User draws annotation
-    ↓
-Slim captures geometry
-    ↓
-Slim creates DICOM SR structure
-    ↓
-Slim → DICOMweb (STOW-RS)
-    ↓
-Annotation stored in archive
-    ↓
-Annotation displayed on viewer
+│                        Slim Application                     │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐    │
+│  │ CaseViewer   │  │ SlideViewer  │  │ Annotations  │    │
+│  └──────┬───────┘  └──────┬───────┘  └──────┬───────┘    │
+│         │                 │                  │             │
+│         └─────────────────┼──────────────────┘             │
+│                           │                                │
+│                           ▼                                │
+│              ┌──────────────────────────┐                  │
+│              │ dicom-microscopy-viewer  │                  │
+│              │  VolumeImageViewer       │                  │
+│              └────────────┬──────────────┘                  │
+└───────────────────────────┼────────────────────────────────┘
+                             │
+                             ▼
+                    ┌─────────────────┐
+                    │  DICOMweb API   │
+                    │  (QIDO-RS,      │
+                    │   WADO-RS)      │
+                    └────────┬────────┘
+                             │
+                             ▼
+                    ┌─────────────────┐
+                    │  DICOM Server    │
+                    │  (PACS/Archive)  │
+                    └─────────────────┘
 ```
 
 ## Component Responsibilities
 
-### Slim Responsibilities
+### Slim (Application Layer)
 
-- **Study/Series Navigation**: Finding and organizing slides
-- **User Interface**: Buttons, menus, sidebars
-- **Annotation Tools**: Drawing tools, measurement tools
-- **Authentication**: OAuth/OIDC flow
-- **Configuration**: Server URLs, annotation styles
-- **Error Handling**: User-friendly error messages
-- **State Management**: React state, routing
+- **Study/Series Management**: Browse and select studies/series
+- **Slide Organization**: Group images into slides
+- **UI Components**: Buttons, menus, sidebars, modals
+- **Annotation Tools**: Create, edit, save ROI annotations
+- **Multi-Server**: Manage connections to multiple DICOMweb servers
+- **Authentication**: Handle OAuth 2.0 / OIDC
 
-### dicom-microscopy-viewer Responsibilities
+### dicom-microscopy-viewer (Rendering Engine)
 
-- **Metadata Parsing**: Converting DICOM JSON to objects
-- **Pyramid Computation**: Building multi-resolution structure
-- **Tile Loading**: Fetching frames from DICOMweb
-- **Decoding**: JPEG/JPEG2000/JPEG-LS decompression
-- **Rendering**: OpenLayers map rendering
-- **Coordinate Transformation**: Pixel ↔ Physical coordinates
-- **Annotation Display**: Rendering ROI overlays
+- **Metadata Parsing**: Parse and validate DICOM VL WSI metadata
+- **Pyramid Computation**: Build multi-resolution pyramid structure
+- **Tile Loading**: Request tiles via DICOMweb WADO-RS
+- **Pixel Decoding**: Decompress JPEG/JPEG2000/JPEG-LS
+- **Rendering**: Display tiles using OpenLayers
+- **Coordinate Transformations**: Convert between pixel, physical, and screen coordinates
+- **ICC Profiles**: Apply color correction
 
-### DICOMweb Server Responsibilities
+### DICOMweb (Communication Layer)
 
-- **Storage**: Storing DICOM objects
-- **Query**: Finding studies/series/instances (QIDO-RS)
-- **Retrieve**: Returning metadata and pixel data (WADO-RS)
-- **Store**: Accepting new DICOM objects (STOW-RS)
+- **QIDO-RS**: Query for studies, series, instances
+- **WADO-RS**: Retrieve metadata and pixel data
+- **STOW-RS**: Store new DICOM objects
+
+## Data Flow: Viewing a Slide
+
+1. **User selects study**: CaseViewer queries DICOMweb QIDO-RS for series
+2. **Slim discovers slides**: Groups images by `ContainerIdentifier` and `FrameOfReferenceUID`
+3. **User selects slide**: SlideViewer component mounts
+4. **Slim creates Slide object**: Organizes images by type (VOLUME, LABEL, OVERVIEW, THUMBNAIL)
+5. **Slim creates viewer**: Instantiates `VolumeImageViewer` with slide metadata
+6. **Viewer computes pyramid**: Analyzes metadata to build multi-resolution structure
+7. **Viewer sets up tile loading**: Creates tile loaders for each pyramid level
+8. **User pans/zooms**: OpenLayers requests visible tiles
+9. **Viewer loads tiles**: Requests frames via DICOMweb WADO-RS
+10. **Viewer decodes pixels**: Decompresses and applies color correction
+11. **Tiles render**: OpenLayers displays tiles on screen
 
 ## Integration Points
 
@@ -200,98 +154,89 @@ return client.retrieveInstanceFrames(retrieveOptions)
 
 ## Key Design Decisions
 
-### Why Separate Library and Application?
+### Separation of Concerns
 
-1. **Reusability**: Other applications can use dicom-microscopy-viewer
-2. **Separation of Concerns**: Rendering logic separate from UI logic
-3. **Testing**: Library can be tested independently
-4. **Maintenance**: Changes to UI don't affect rendering engine
+- **Slim**: Application logic, UI, workflows
+- **dicom-microscopy-viewer**: Rendering, tile management, DICOM parsing
+- **DICOMweb**: Data access, storage
 
 ### Why OpenLayers?
 
-OpenLayers is a mapping library that provides:
-
-- **Tile-based rendering**: Perfect for WSI tiles
-- **Multi-resolution support**: Built-in pyramid handling
-- **Pan/zoom interactions**: Out-of-the-box
-- **Coordinate systems**: Handles transformations
-- **Performance**: Optimized for large datasets
+- **Proven technology**: Battle-tested for tile-based rendering
+- **Multi-resolution**: Built-in support for zoom levels
+- **Performance**: Efficient tile caching and management
+- **Extensibility**: Easy to customize for DICOM-specific needs
 
 ### Why DICOMweb?
 
-- **Standard**: Works with existing medical imaging infrastructure
-- **RESTful**: Easy to use over HTTP
-- **Scalable**: Can handle large datasets
+- **Standard**: Official DICOM standard for web-based access
+- **RESTful**: Simple HTTP requests, easy to debug
 - **Interoperable**: Works with any DICOMweb-compliant server
+- **Scalable**: Can distribute across multiple servers
 
-## Performance Optimizations
+### Why Separate Annotations?
 
-### 1. Lazy Loading
+According to [DICOM WSI standards](https://dicom.nema.org/dicom/dicomwsi/), annotations are stored separately because:
 
-Tiles are only loaded when visible:
+- **Different modality**: Annotations are created by different processes
+- **Different timing**: Created after image acquisition
+- **Different equipment**: May be created on different systems
+- **Multiple annotations**: Multiple annotation objects can reference the same image
 
-- OpenLayers calculates visible tiles
-- Only those tiles are requested
-- Tiles outside viewport are not loaded
+## Multi-Server Architecture
 
-### 2. Caching
+Slim can connect to multiple DICOMweb servers:
 
-Recently loaded tiles are cached:
+```
+┌─────────────┐
+│    Slim     │
+└──────┬──────┘
+       │
+       ├──────────────┬──────────────┬──────────────┐
+       │              │              │              │
+       ▼              ▼              ▼              ▼
+┌─────────────┐ ┌─────────────┐ ┌─────────────┐ ┌─────────────┐
+│ Image Server│ │Annotation   │ │Segmentation │ │  Archive    │
+│             │ │   Server     │ │   Server    │ │             │
+└─────────────┘ └─────────────┘ └─────────────┘ └─────────────┘
+```
 
-- Avoids re-fetching same tiles
-- Configurable cache size (default: 1000 tiles)
-- Cache eviction when limit reached
-
-### 3. Preloading
-
-Optional preloading of pyramid levels:
-
-- Can preload lower resolution levels
-- Speeds up initial zoom operations
-- Configurable via `preload` option
-
-### 4. Multi-resolution
-
-Automatic level switching:
-
-- High zoom → High resolution tiles
-- Low zoom → Low resolution tiles
-- Smooth transitions between levels
+**Benefits**:
+- **Separation**: Different data types in different archives
+- **Performance**: Optimize servers for specific workloads
+- **Security**: Different access controls per server
+- **Scalability**: Distribute load
 
 ## Error Handling
 
-### Three Layers
+- **Slim**: Catches errors, displays user-friendly messages
+- **dicom-microscopy-viewer**: Publishes error events
+- **DICOMweb**: Returns HTTP error codes
 
-1. **dicom-microscopy-viewer**: Throws errors, publishes events
-2. **Slim**: Catches errors, shows user-friendly messages
-3. **DICOMweb**: Returns HTTP error codes
+Errors flow: DICOMweb → dicom-microscopy-viewer → Slim → User
 
-### Error Flow
+## Performance Considerations
 
-```
-DICOMweb error
-    ↓
-dicom-microscopy-viewer catches
-    ↓
-Publishes error event
-    ↓
-Slim error interceptor receives
-    ↓
-Notification middleware displays
-    ↓
-User sees friendly error message
-```
+### Tile Caching
 
-## Extension Points
+- **Memory cache**: Recently viewed tiles kept in memory (default: 1000 tiles)
+- **LRU eviction**: Least recently used tiles evicted when cache full
+- **Preloading**: Lower resolution levels can be preloaded
 
-### Adding New Features
+### Lazy Loading
 
-1. **New Image Type**: Extend `metadata.js` in dicom-microscopy-viewer
-2. **New Annotation Type**: Extend `annotation.js` in dicom-microscopy-viewer
-3. **New UI Component**: Add React component in Slim
-4. **New DICOM Type**: Add support in both libraries
+- **On-demand**: Only visible tiles are loaded
+- **Progressive**: Lower resolution loads first, then higher resolution
+- **Cancellation**: Cancels requests for tiles that become invisible
+
+### Compression
+
+- **JPEG 2000**: Preferred for better compression
+- **JPEG**: Fallback for compatibility
+- **JPEG-LS**: Lossless option
 
 ## Next Steps
 
 - [Key Concepts](./06-key-concepts.md) - Important technical concepts
 - [Common Use Cases](./07-common-use-cases.md) - Real-world scenarios
+

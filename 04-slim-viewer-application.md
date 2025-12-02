@@ -6,31 +6,31 @@
 
 **Slim** is a single-page React application that provides a complete pathology viewer interface. It uses `dicom-microscopy-viewer` as its rendering engine and adds:
 
-- User interface (UI components)
-- Study/series navigation
-- Annotation tools
-- Patient information display
-- Authentication/authorization
-- DICOMweb client management
+- **Study/Series management**: Browse and select studies and series
+- **Slide organization**: Groups images into slides based on `ContainerIdentifier` and `FrameOfReferenceUID`
+- **Annotation tools**: Create, edit, and save ROI annotations
+- **Multi-server support**: Connect to multiple DICOMweb servers
+- **Authentication**: OAuth 2.0 / OIDC support
+- **UI components**: Complete user interface with controls, sidebars, and modals
 
-## Architecture
-
-### Component Hierarchy
+## Component Hierarchy
 
 ```
-App
-└── CaseViewer
-    ├── SlideList (sidebar)
-    └── SlideViewer
-        ├── VolumeImageViewer (from dicom-microscopy-viewer)
-        ├── LabelImageViewer (from dicom-microscopy-viewer)
-        ├── Annotation Tools
-        └── Sidebar (metadata, annotations)
+CaseViewer (main container)
+  ├── Sidebar
+  │   ├── PatientInfo
+  │   ├── StudyInfo
+  │   └── SlideList
+  └── Routes
+      └── SlideViewer
+          ├── VolumeImageViewer (from dicom-microscopy-viewer)
+          ├── LabelImageViewer (from dicom-microscopy-viewer)
+          ├── AnnotationTools
+          ├── MeasurementTools
+          └── ReportViewer
 ```
 
-### Key Components
-
-#### CaseViewer
+### CaseViewer
 
 The main container component that manages study/series selection, slide discovery, and routing.
 
@@ -75,7 +75,7 @@ function CaseViewer({ clients, studyInstanceUID }) {
 ```
 </details>
 
-#### SlideViewer
+### SlideViewer
 
 The main viewer component that displays a slide and provides interaction tools.
 
@@ -143,6 +143,18 @@ class Slide {
 ```
 </details>
 
+## Slide Discovery Process
+
+Slim discovers slides by:
+
+1. **Querying series**: Uses QIDO-RS to find all series in a study
+2. **Retrieving metadata**: Gets metadata for all instances in each series
+3. **Grouping by slide**: Groups images by `ContainerIdentifier` and `FrameOfReferenceUID`
+4. **Filtering by type**: Separates VOLUME, LABEL, OVERVIEW, and THUMBNAIL images
+5. **Creating Slide objects**: Instantiates `Slide` objects for each physical slide
+
+**Result**: A list of slides, each containing all related images organized by type.
+
 ## DICOMweb Client Management
 
 Slim can connect to multiple DICOMweb servers, allowing different DICOM object types to be stored in different archives.
@@ -181,103 +193,72 @@ for (const client of Object.values(clients)) {
 
 ## Annotation Features
 
-### Creating Annotations
+Slim provides comprehensive annotation capabilities:
 
-Slim provides tools for creating ROI (Region of Interest) annotations:
+### ROI Annotations
 
-- Point
-- Polygon
-- Ellipse
-- Freehand drawing
+- **Create**: Draw polygons, circles, points on the slide
+- **Edit**: Modify existing annotations
+- **Delete**: Remove annotations
+- **Save**: Store annotations as DICOM Comprehensive 3D SR objects
+- **Load**: Retrieve and display existing annotations
 
-Annotations are stored as DICOM Comprehensive 3D SR instances.
+### Annotation Types
 
-### Displaying Annotations
+Based on [DICOM WSI annotation standards](https://dicom.nema.org/dicom/dicomwsi/):
 
-Slim can display:
+- **ROI (Region of Interest)**: Polygons, circles, points marking areas of interest
+- **Segmentation**: Binary masks categorizing image regions
+- **Structured Reporting**: Measurements, observations, findings with context
+- **Presentation States**: Display parameters (blending, pseudocoloring for fluorescence)
 
-- **DICOM SR**: Structured reports with ROI annotations
-- **DICOM Segmentation**: Binary masks (e.g., nuclei segmentation)
-- **DICOM Parametric Map**: Heat maps (e.g., attention maps)
-- **DICOM Bulk Annotations**: Large collections of annotations (e.g., cell annotations)
+### Annotation Storage
 
-## Configuration
+Annotations are stored as separate DICOM objects:
 
-Slim is configured via JavaScript files in `public/config/`:
-
-```javascript
-window.config = {
-  path: "/",
-  servers: [
-    {
-      id: "local",
-      url: "http://localhost:8008/dcm4chee-arc/aets/DCM4CHEE/rs",
-      write: true,
-    },
-  ],
-  annotations: [
-    {
-      finding: {
-        value: "85756007",
-        schemeDesignator: "SCT",
-        meaning: "Tissue",
-      },
-      style: {
-        stroke: {
-          color: [251, 134, 4, 1],
-          width: 2,
-        },
-        fill: {
-          color: [255, 255, 255, 0.2],
-        },
-      },
-    },
-  ],
-};
-```
+- **Series**: Annotations stored in separate series (different modality)
+- **Reference**: Annotations reference the image via `ReferencedSOPInstanceUID`
+- **Coordinates**: Stored in physical (slide) coordinates, not pixel coordinates
+- **Format**: DICOM Comprehensive 3D SR (TID1500) for measurements and findings
 
 ## Authentication
 
-Slim supports OAuth 2.0 / OpenID Connect for authentication:
+Slim supports OAuth 2.0 / OIDC authentication:
 
-- Authorization code grant with PKCE
-- Implicit grant (legacy)
-- Google Cloud Healthcare API integration
+- **Multiple providers**: Configurable OAuth providers
+- **Token management**: Automatic token refresh
+- **DICOMweb integration**: Tokens included in DICOMweb requests
 
-## Deployment
+## Configuration
 
-Slim is a static web application:
+Slim is configured via:
 
-1. Build: `yarn build`
-2. Deploy: Copy `build/` folder to any static web server
-3. Configure: Set `REACT_APP_CONFIG` environment variable
-
-No server-side components required!
+- **Environment variables**: Server URLs, OAuth settings
+- **Configuration files**: Client mappings, UI preferences
+- **Runtime settings**: User preferences, display options
 
 ## Key Differences from dicom-microscopy-viewer
 
 | Feature            | dicom-microscopy-viewer    | Slim                    |
 | ------------------ | -------------------------- | ----------------------- |
-| **Purpose**        | Rendering engine (library) | Complete application    |
-| **Framework**      | Vanilla JS                 | React + TypeScript      |
-| **UI**             | None                       | Full UI with Ant Design |
-| **Navigation**     | None                       | Study/series navigation |
-| **Annotations**    | Display only               | Create + Display        |
-| **Authentication** | None                       | OAuth 2.0 / OIDC        |
-| **Configuration**  | Programmatic               | Config files            |
+| **Purpose**        | Rendering engine           | Complete application    |
+| **UI**             | Minimal built-in controls  | Full UI with React      |
+| **Study management** | None                    | Browse studies/series   |
+| **Annotations**    | Display only              | Create, edit, save       |
+| **Multi-server**   | Basic support             | Full multi-server setup |
+| **Authentication** | None                      | OAuth 2.0 / OIDC        |
 
-## Workflow Example
+## Data Flow
 
-1. **User opens Slim**: Navigates to study URL
-2. **Slim fetches metadata**: Uses DICOMweb QIDO-RS to find series
-3. **Slim organizes slides**: Groups images by ContainerIdentifier
-4. **User selects slide**: Clicks on slide in sidebar
+1. **User selects study**: CaseViewer queries DICOMweb for series
+2. **Slim discovers slides**: Groups images by ContainerIdentifier
+3. **User selects slide**: SlideViewer component mounts
+4. **Slim creates Slide object**: Organizes images by type
 5. **Slim creates viewer**: Instantiates `VolumeImageViewer` with slide metadata
 6. **Viewer renders**: dicom-microscopy-viewer loads and displays tiles
-7. **User interacts**: Pans, zooms, creates annotations
-8. **Slim saves annotations**: Stores as DICOM SR via STOW-RS
 
 ## Next Steps
 
 - [Architecture Overview](./05-architecture-overview.md) - How everything fits together
 - [Key Concepts](./06-key-concepts.md) - Important technical concepts
+

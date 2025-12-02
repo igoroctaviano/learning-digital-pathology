@@ -7,7 +7,7 @@ This directory contains educational materials about pathology viewers, whole sli
 These materials are designed to help you understand:
 
 - What pathology and whole slide imaging are
-- How DICOM WSI format works
+- How DICOM WSI format works (based on [DICOM Supplement 145](https://dicom.nema.org/dicom/dicomwsi/))
 - How dicom-microscopy-viewer (the rendering engine) works
 - How Slim (the viewer application) works
 - How they integrate together
@@ -33,6 +33,7 @@ We recommend reading these documents in order:
    - What is pathology?
    - What is whole slide imaging?
    - Why pyramids and tiling?
+   - Official DICOM WSI characteristics
 
 2. **[DICOM WSI Format](./02-dicom-wsi-format.md)**
 
@@ -41,6 +42,7 @@ We recommend reading these documents in order:
    - Pyramid structure
    - Frame mapping
    - Optical paths
+   - Coordinate systems
 
 3. **[dicom-microscopy-viewer Engine](./03-dicom-microscopy-viewer-engine.md)**
 
@@ -94,72 +96,33 @@ We recommend reading these documents in order:
 
 ## Quick Reference
 
-### Key Components
+### Key DICOM Attributes
 
-- **dicom-microscopy-viewer**: Rendering engine (library)
-- **Slim**: Viewer application (React app)
-- **DICOMweb**: RESTful API for DICOM data
+- `StudyInstanceUID`: Unique study identifier
+- `SeriesInstanceUID`: Unique series identifier
+- `SOPInstanceUID`: Unique instance identifier
+- `ContainerIdentifier`: Links images from same physical slide
+- `FrameOfReferenceUID`: Links images in same coordinate system
+- `TotalPixelMatrixColumns/Rows`: Full image dimensions
+- `PixelSpacing`: Physical size per pixel (e.g., 0.00025 mm = 0.25 microns)
+- `ImageType`: Array indicating image flavor (VOLUME, THUMBNAIL, OVERVIEW, LABEL)
 
-### Key Concepts
+### Image Types
 
-- **Pyramids**: Multi-resolution image representation
-- **Tiling**: Dividing images into small tiles
-- **Optical Paths**: Different imaging channels
-- **Annotations**: ROI markings and measurements
+- **VOLUME**: High-resolution pyramid images
+- **THUMBNAIL**: Small preview (200-500 px)
+- **OVERVIEW**: Navigation aid (1,000-5,000 px)
+- **LABEL**: Physical slide label image
 
-### Code Locations
+### Official Resources
 
-- **dicom-microscopy-viewer**: `/dicom-microscopy-viewer/src/`
-- **Slim**: `/slim/src/`
-- **Key files**:
-  - `dicom-microscopy-viewer/src/viewer.js` - Main viewer class
-  - `dicom-microscopy-viewer/src/pyramid.js` - Pyramid computation
-  - `slim/src/components/SlideViewer.tsx` - Main viewer component
-  - `slim/src/components/CaseViewer.tsx` - Study/series navigation
+- [DICOM WSI Official Documentation](https://dicom.nema.org/dicom/dicomwsi/)
+- [DICOM Standard](http://www.dicomstandard.org/current)
+- [DICOM Supplement 145 - Whole Slide Imaging](https://dicom.nema.org/dicom/dicomwsi/)
 
-## How to Use These Materials
-
-### For Learning
-
-1. Start with the introduction
-2. Read through each document in order
-3. Reference code examples in the actual codebase
-4. Try the concepts in practice
-
-### For Teaching
-
-1. Use as presentation materials
-2. Reference specific sections during discussions
-3. Point to code examples for technical details
-4. Use troubleshooting guide for support
-
-### For Client Communication
-
-1. Use introduction for high-level overview
-2. Reference architecture overview for system design
-3. Use use cases for feature demonstrations
-4. Reference glossary for terminology
-
-## Additional Resources
-
-- [DICOM Standard](https://www.dicomstandard.org/)
-- [DICOM WSI Supplement](http://dicom.nema.org/medical/dicom/current/output/chtml/part03/sect_A.32.8.html)
-- [dicom-microscopy-viewer Documentation](https://imagingdatacommons.github.io/dicom-microscopy-viewer/)
-- [Slim Repository](https://github.com/ImagingDataCommons/slim)
-- [dicom-microscopy-viewer Repository](https://github.com/ImagingDataCommons/dicom-microscopy-viewer)
-
-## Contributing
-
-If you find errors or want to add content:
-
-1. Edit the relevant markdown file
-2. Keep code examples accurate
-3. Update this README if adding new documents
-4. Reference actual code from the codebase
-
-## Questions?
+## Getting Help
 
 - Check the [Troubleshooting](./08-troubleshooting.md) guide
 - Review the [Glossary](./09-glossary.md) for terminology
-- Look at code examples in the actual codebase
-- Refer to DICOM standard documentation
+- Consult the [official DICOM WSI documentation](https://dicom.nema.org/dicom/dicomwsi/)
+
