@@ -13,6 +13,11 @@ These materials are designed to help you understand:
 - How they integrate together
 - Key technical concepts
 - Common use cases and troubleshooting
+- DICOM storage and Vendor Neutral Archives (VNA) for pathology
+- DICOM converters for pathology images
+- Barriers to DICOM adoption in digital pathology
+- IHE DPIA integration profile for standardized workflows
+- Future trends including AI and telepathology
 
 ## Who Is This For?
 
@@ -93,6 +98,35 @@ We recommend reading these documents in order:
 
 9. **[Glossary](./09-glossary.md)**
    - Terminology reference
+
+10. **[DICOM Storage & Vendor Neutral Archives (VNA)](./10-dicom-storage-and-vna.md)**
+
+    - Storage solutions in radiology vs. pathology
+    - How VNAs work and their potential use in pathology
+    - Current challenges in DICOM-based pathology storage
+
+11. **[DICOM Converters](./11-dicom-converters.md)**
+
+    - Why pathology images need conversion to DICOM
+    - Overview of DICOM converters for digital pathology
+    - Pathology-specific conversion challenges
+
+12. **[Barriers to DICOM Adoption](./12-barriers-to-dicom-adoption.md)**
+
+    - Lack of standardization in pathology compared to radiology
+    - Challenges with image size, metadata handling, and compression
+    - Legal, regulatory, and IT barriers
+
+13. **[IHE DPIA Integration Profile](./13-ihe-dpia-integration-profile.md)**
+
+    - Overview of DPIA and its relevance to digital pathology
+    - How DPIA facilitates standardized image acquisition workflows
+
+14. **[Future Trends & Next Steps (AI)](./14-future-trends-and-next-steps.md)**
+
+    - AI & machine learning applications using DICOM-based pathology images
+    - Emerging technologies and DICOM standards development
+    - Telepathology as facilitated by DICOM
 
 ## Quick Reference
 
