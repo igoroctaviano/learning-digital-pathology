@@ -35,6 +35,25 @@ The viewer processes multiple DICOM instances to build the pyramid:
 
 **Result**: A structured pyramid ready for multi-resolution rendering.
 
+### Practical Pyramid Structure
+
+In practice, whole slide images are stored at multiple resolutions to accommodate efficient loading. For example, a sample whole slide image acquired at 40X by the Aperio Scanscope whole slide scanner is accompanied by the same image downsampled at 10X, 2.5X, and 1.25X, as well as a thumbnail image that represents the entire tissue fit within a ~1-megapixel frame.
+
+**Typical Pyramid Levels**:
+- **Level 0**: Highest resolution (e.g., 40X / 0.25 mpp)
+- **Level 1**: 10X / 1.0 mpp (4× downsampled)
+- **Level 2**: 2.5X / 4.0 mpp (16× downsampled)
+- **Level 3**: 1.25X / 8.0 mpp (32× downsampled)
+- **Thumbnail**: Entire slide in ~1 megapixel frame
+
+**Optimal Number of Levels**:
+- Typically 3 or 4 levels provide good balance
+- More levels result in incrementally larger file sizes but allow viewing software to more efficiently select the scale at which to load data
+- Users are encouraged to select a value that balances the tradeoff between bandwidth and overall file size
+
+**File Size Impact**:
+The addition of downsampled images increases overall file size. The relationship between pyramid levels and file size can be estimated, with each additional level adding approximately 25-33% to the base level size (depending on compression).
+
 <details>
 <summary><em>Code example (optional - skip if not coding)</em></summary>
 
@@ -212,13 +231,42 @@ According to the [DICOM WSI documentation](https://dicom.nema.org/dicom/dicomwsi
 
 ## 7. Compression
 
-WSI images are compressed to reduce storage and transfer:
+WSI images are compressed to reduce storage and transfer. Compression is ubiquitous in WSI, with many vendors using JPEG, JPEG 2000, or LZW compression to reduce file size to manageable levels, often resulting in a reduction of file size by a factor of 7 or more.
 
-- **JPEG**: Lossy, good for color images
-- **JPEG 2000**: Better compression, supports lossless
+### Compression Formats
+
+- **JPEG**: Lossy compression, good for color images
+- **JPEG 2000**: Better compression, supports both lossless and lossy modes
 - **JPEG-LS**: Lossless compression
+- **LZW**: Lossless compression used by some vendors
 
 The viewer supports all formats and decodes them client-side.
+
+### JPEG Compression Quality
+
+For systems that enable users to specify the level of JPEG compression (usually expressed as a quality factor between 0 and 1):
+
+**Quality Factor 0.8**:
+- Reduction in file size by a factor of ~15.9
+- Generally acceptable quality for most diagnostic purposes
+- Minimal visible artifacts
+
+**Quality Factor 0.1**:
+- Reduction in file size by a factor of ~108.3
+- Visible artifacts become apparent
+- Not recommended for diagnostic use
+
+**Important Considerations**:
+- Morphologic assessments appear to be less affected by compression
+- Densitometric assessments are increasingly sensitive to loss of digital information
+- Users are discouraged from applying JPEG compression successively on the same image, as each round of compression can result in degradation of image quality
+- Excessive compression can introduce visible image artifacts
+
+### Blank Region Removal
+
+An additional method commonly used in WSI to reduce file size is to discard blank regions of the slide altogether. Vendors use this technique to:
+- Reduce file sizes
+- Reduce scan times by identifying regions in the initial macro snapshot that do not need to be scanned
 
 ## 8. Concatenation
 
@@ -253,15 +301,118 @@ if (metadata.SOPInstanceUIDOfConcatenationSource) {
 ```
 </details>
 
-## 9. ICC Profiles
+## 9. ICC Profiles and Color Calibration
 
-ICC (International Color Consortium) profiles ensure accurate color display:
+ICC (International Color Consortium) profiles ensure accurate color display and are critical for maintaining diagnostic quality in digital pathology.
 
-- **Color correction**: Adjusts colors to match original scanner output
+### Why Color Matters
+
+Differences in color can have a significant influence on diagnostic performance:
+
+**Display Aging Effects**:
+- Aging reduces color saturation and luminosity
+- Produces a shift in the color point of white
+- Research shows that aged displays increase pathologist scoring time (from 41 to 50 seconds)
+- Ease of reading drops from 9.7 to 8.7 (on a scale of 1-10)
+- Intersession percentage agreement of diagnostic scores is about 20% higher on non-aged displays
+
+**Color Differences in the Pipeline**:
+Every laboratory has its own protocols for processing samples, including tissue acquisition, fixation, processing, and staining. This is a first source of perceived color differences. WSI further highlights color differences as more components are added to the visualization chain:
+- Different scanners may produce different color renditions of the same slide
+- Different viewing applications may exhibit visible color differences
+- Different displays can cause differences in color perception
+
+### ICC Framework for Color Calibration
+
+Absolute color calibration can be achieved using the International Color Consortium (ICC) framework, an open, vendor-neutral, cross-platform color management protocol.
+
+**Calibration Process**:
+1. **Characterize the Scanner**: Scan a color calibration slide containing semi-transparent colored patches with known color attributes
+2. **Create ICC Profile**: Generate an ICC profile that maps scanner color space to a standard color space
+3. **Characterize the Display**: Measure display color characteristics
+4. **Apply Color Management**: Use ICC profiles to ensure consistent color from scanner to display
+
+**Benefits**:
+- **Color Correction**: Adjusts colors to match original scanner output
 - **Standardization**: Ensures consistent colors across displays
-- **Optional**: Can be disabled for performance
+- **Diagnostic Quality**: Maintains color accuracy critical for diagnosis
+- **Reproducibility**: Enables consistent color perception across different systems
 
-## 10. Event Publishing
+**Color Gamut Matching**:
+When the color gamut of the whole slide scanner does not match the color gamut of the display, different color sensations may occur. For example, the most saturated red that can be acquired by the scanner may not correspond to the most saturated red of the display. ICC profiles help manage these differences.
+
+**Pre-Imaging Standardization**:
+Agreement on standardized tissue handling protocols and stain standardization may be useful at the pre-imaging stage to minimize color differences before digitization.
+
+## 10. Viewing Software and Tools
+
+Whole slide imaging offers an opportunity to expand the set of tools available to users, including digital annotation, rapid navigation/magnification, and computer-assisted viewing and analysis.
+
+### Vendor-Provided Viewers
+
+Many WSI systems include image viewing software:
+- **Local Installation**: Software installed on user computers
+- **Network-Based**: Software suite residing on network servers, enabling browser-based viewing
+- **Integrated Analysis**: Some viewers include algorithms for cell detection, positive staining computation, regional segmentation, and nuclear segmentation
+
+### Open-Source Viewing Tools
+
+**ImageJ and Fiji**:
+- **ImageJ**: Free software tool from the National Institutes of Health
+- Includes common image analysis algorithms useful for histology image processing
+- **Fiji**: Popular package that bundles features and enhancements to ImageJ
+- Extends the suite of image analysis algorithms available to researchers
+- **Limitation**: Loading entire whole slide images in these platforms remains difficult; special considerations must be made to efficiently load and process these images
+
+**QuPath**:
+- Freely available open-source whole slide image viewer
+- Developed by Centre for Cancer Research & Cell Biology at Queen's University Belfast
+- Extends ImageJ-like functionality to a platform designed specifically for whole slide images
+- Offers whole slide viewing, annotations, image analysis, and automation
+- Allows researchers access to advanced open-source software tools
+
+### Libraries for Direct Image Access
+
+For research applications where automated quantitative processing is used, direct access to image files is sometimes preferred:
+
+**OpenSlide**:
+- Vendor-neutral software foundation for digital pathology
+- Provides support for more than 8 proprietary whole slide formats
+- Enables users to use the same basic functionality for images across multiple vendors
+- Facilitates multi-institution studies or analysis of public image repositories
+
+**Bio-Formats**:
+- Provides support for a greater number of image formats
+- Supports integration with commonly used programming and scripting environments like Matlab and Python
+- Supports more than 8 proprietary whole slide formats
+- Allows users to use the same basic functionality for images across multiple vendors
+
+**Matlab**:
+- Built-in support for whole slide images using the `imread` function
+- Optional input parameters allow users to specify the pyramid level to access
+- Can restrict the region to load based on user-supplied coordinates
+- Not all image formats and magnifications are supported
+
+### Image Management Systems
+
+Image management systems are software platforms that offer the ability to organize and access images using image metadata, patient information, or other characteristics:
+
+**Common Features**:
+- Organize slides in a hierarchy (patient → case → specimen → slides)
+- Integrated image viewers and analysis routines
+- Ability to save and recall slide annotations
+- Integration with information systems (LIS)
+- Storage of computed data (e.g., Her2 score)
+- Authentication and user management
+- Modules that provide reports of results
+
+**Examples**:
+- PathcoreFlow (Pathcore, Toronto, Ontario, Canada)
+- Aperio eSlideManager (Leica Biosystems)
+
+Some hospital PACS and LIS systems may support image organization, although they typically have only limited support for the unique requirements of whole slide images.
+
+## 11. Event Publishing
 
 The viewer publishes events for integration:
 
@@ -302,4 +453,16 @@ EVENT.FRAME_LOADING_ERROR;
 
 - [Common Use Cases](./07-common-use-cases.md) - Real-world scenarios
 - [Troubleshooting](./08-troubleshooting.md) - Common issues and solutions
+
+## References
+
+- [DICOM WSI Official Documentation](https://dicom.nema.org/dicom/dicomwsi/)
+- [DICOM Standard](http://www.dicomstandard.org/current)
+- DICOM Supplement 145 - Whole Slide Imaging in Pathology
+- Zarella MD, Bowman D, Aeffner F, et al. A Practical Guide to Whole Slide Imaging: A White Paper From the Digital Pathology Association. Arch Pathol Lab Med. 2019;143(2):222-234. doi:10.5858/arpa.2018-0343-RA
+- [OpenSlide](https://openslide.org/)
+- [Bio-Formats](https://www.openmicroscopy.org/bio-formats/)
+- [QuPath](https://qupath.github.io/)
+- [ImageJ](https://imagej.nih.gov/ij/)
+- [Fiji](https://fiji.sc/)
 

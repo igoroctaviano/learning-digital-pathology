@@ -204,6 +204,81 @@ Pathology workflows require tight integration with LIS:
 - Tracking quality metrics and issues
 - Supporting re-scan workflows
 
+## Storage Strategy Decision-Making
+
+The strategy for storing virtual slides is largely dependent on intended use. Different use cases require different storage approaches:
+
+### Local Storage
+
+**Appropriate For**:
+- Applications with very few users
+- No need for retention
+- Research projects with no need to share images with collaborators
+- Projects with no need to access images after completion
+
+**Considerations**:
+- Simple setup
+- No network dependencies
+- Limited scalability
+- No built-in backup
+
+### Network-Based Storage
+
+**Appropriate For**:
+- Applications where access for multiple users is required
+- Clinical workflows requiring shared access
+- Educational applications with multiple users
+
+**Considerations**:
+- Can be accomplished in parallel with a responsible backup strategy
+- Requires network infrastructure
+- Supports multiple concurrent users
+- Centralized management
+
+### Cloud-Based Storage
+
+**Appropriate For**:
+- Scalable storage needs
+- Multi-site organizations
+- Organizations without extensive IT infrastructure
+- Global accessibility requirements
+
+**Considerations**:
+- **Cost**: Bandwidth and data throughput costs can be significant
+- **Performance**: Dependent on internet connection quality
+- **Scalability**: Elastic scaling capabilities
+- **Accessibility**: Global access from anywhere
+- **Compliance**: Must ensure HIPAA/GDPR compliance
+
+### Hybrid Solutions
+
+**Hub-and-Spoke Models**:
+- Effective for multisite organizations
+- Central hub with local storage at sites
+- Balances local performance with centralized management
+
+**Local and Cloud Combination**:
+- Local storage for frequently accessed images
+- Cloud storage for archival and backup
+- Balances performance and cost
+
+### Backup Strategies
+
+For applications where retention is important, methods to ensure reliable archival should be explored:
+
+**Complete Backup Strategy May Include**:
+- **RAID Storage**: Redundant array of independent disks for local redundancy
+- **Off-Site Storage**: Physical separation for disaster recovery
+- **Optical/Tape Storage**: Long-term archival media
+- **Cloud Backup**: Automated cloud-based backup solutions
+- **Combination**: Multiple backup methods for comprehensive protection
+
+**Key Considerations**:
+- **Retention Requirements**: How long must images be retained?
+- **Recovery Time Objectives**: How quickly must data be recoverable?
+- **Recovery Point Objectives**: How much data loss is acceptable?
+- **Cost**: Balance between protection level and cost
+
 ## Next Steps
 
 - [DICOM Converters](./11-dicom-converters.md) - Converting proprietary formats to DICOM
