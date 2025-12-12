@@ -10,6 +10,41 @@ A pathologist needs to review an H&E (Hematoxylin and Eosin) stained slide for d
 
 ### Workflow
 
+```
+┌─────────────────────────────────────────────────────┐
+│         H&E Slide Viewing Workflow                  │
+└─────────────────────────────────────────────────────┘
+
+1. User opens study
+   ┌──────────────┐
+   │ CaseViewer   │ ──Query──→ DICOMweb (QIDO-RS)
+   └──────────────┘
+
+2. Slim discovers slides
+   ┌─────────────────────┐
+   │ Groups by           │ ContainerIdentifier
+   │ FrameOfReferenceUID │
+   └─────────────────────┘
+
+3. User selects slide
+   ┌──────────────┐
+   │ SlideViewer  │ Mounts
+   └──────┬───────┘
+          │
+4. Viewer loads
+   ┌──────▼───────┐
+   │ Computes     │ Pyramid structure
+   │ pyramid      │
+   └──────┬───────┘
+          │
+5. User pans/zooms
+   ┌──────▼───────┐
+   │ Tiles load   │ On-demand via WADO-RS
+   │ on-demand    │
+   └──────────────┘
+```
+
+**Steps**:
 1. **User opens study**: CaseViewer queries DICOMweb for series
 2. **Slim discovers slides**: Groups images by `ContainerIdentifier`
 3. **User selects slide**: SlideViewer mounts

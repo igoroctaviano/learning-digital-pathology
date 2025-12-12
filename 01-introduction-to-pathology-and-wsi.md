@@ -6,6 +6,38 @@ Pathology is the medical specialty that studies the causes and effects of diseas
 
 ### Traditional Pathology Workflow
 
+```
+┌───────────────────┐
+│ Sample Collection │
+│  (Biopsy/Surgery) │
+└────────┬──────────┘
+         │
+         ▼
+┌───────────────────┐
+│   Processing      │
+│ Fix → Embed → Cut │
+└────────┬──────────┘
+         │
+         ▼
+┌───────────────────┐
+│    Staining       │
+│  (H&E, IHC, etc.) │
+└────────┬──────────┘
+         │
+         ▼
+┌───────────────────┐
+│   Microscopy      │
+│  Pathologist Exam │
+└────────┬──────────┘
+         │
+         ▼
+┌─────────────────┐
+│  Documentation  │
+│   (Report)      │
+└─────────────────┘
+```
+
+**Steps**:
 1. **Sample Collection**: A tissue sample (biopsy or surgical specimen) is collected
 2. **Processing**: The sample is fixed, processed, embedded in paraffin, and sliced into thin sections
 3. **Staining**: Sections are stained (commonly H&E - Hematoxylin and Eosin) to highlight different tissue structures
@@ -16,6 +48,19 @@ Pathology is the medical specialty that studies the causes and effects of diseas
 
 Whole Slide Imaging (WSI), also known as digital pathology, digitizes entire glass slides at high resolution. This enables:
 
+```
+┌─────────────────────────────────────────────────────┐
+│         Benefits of Digital Pathology               │
+└─────────────────────────────────────────────────────┘
+
+✅ Remote Viewing      → Pathologists view slides from anywhere
+✅ Collaboration       → Multiple pathologists review simultaneously  
+✅ AI/ML Integration   → Computer algorithms analyze patterns
+✅ Archiving           → Digital slides don't degrade over time
+✅ Education           → Students access vast case libraries
+```
+
+**Key Capabilities**:
 - **Remote viewing**: Pathologists can view slides from anywhere
 - **Collaboration**: Multiple pathologists can review the same slide simultaneously
 - **AI/ML integration**: Computer algorithms can analyze images for pattern recognition
@@ -30,6 +75,35 @@ Whole slide imaging encompasses the digitization of entire histology slides or p
 
 Whole slide scanners consist of four main components:
 
+```
+┌─────────────────────────────────────────┐
+│      Whole Slide Scanner                │
+│                                         │
+│  ┌──────────┐                           │
+│  │  Light   │ ← Illumination            │
+│  │  Source  │                           │
+│  └────┬─────┘                           │
+│       │                                 │
+│       ▼                                 │
+│  ┌──────────┐                           │
+│  │  Slide   │ ← Holds glass slide       │
+│  │  Stage   │                           │
+│  └────┬─────┘                           │
+│       │                                 │
+│       ▼                                 │
+│  ┌──────────┐                           │
+│  │Objective │ ← Magnification (20X/40X) │
+│  │  Lens    │                           │
+│  └────┬─────┘                           │
+│       │                                 │
+│       ▼                                 │
+│  ┌──────────┐                           │
+│  │  Camera  │ ← Captures digital image  │
+│  └──────────┘                           │
+└─────────────────────────────────────────┘
+```
+
+**Components**:
 1. **Light Source**: Provides illumination for image capture
 2. **Slide Stage**: Holds and positions the slide during scanning
 3. **Objective Lenses**: Provide magnification (typically 20X, 40X, or higher)
@@ -40,12 +114,39 @@ Whole slide scanners consist of four main components:
 Scanners capture images using one of two methods:
 
 **Tile-by-Tile Scanning**:
+```
+┌─────┬─────┬─────┬─────┐
+│ Tile│ Tile│ Tile│ Tile│  ← Captures overlapping tiles
+├─────┼─────┼─────┼─────┤
+│ Tile│ Tile│ Tile│ Tile│
+├─────┼─────┼─────┼─────┤
+│ Tile│ Tile│ Tile│ Tile│
+└─────┴─────┴─────┴─────┘
+         ↓
+    [Stitching]
+         ↓
+┌────────────────────────┐
+│   Complete Slide Image │
+└────────────────────────┘
+```
 - Captures multiple overlapping images (tiles)
 - Tiles are digitally assembled ("stitched") to create the complete slide image
 - Used for both brightfield and fluorescent scanning
 - Allows for individual tile focusing
 
 **Line-Scanning**:
+```
+┌─────────────────────────┐
+│ ─────────────────────── │  ← Continuous line capture
+│ ─────────────────────── │
+│ ─────────────────────── │
+│ ─────────────────────── │
+└─────────────────────────┘
+         ↓
+┌────────────────────────┐
+│   Complete Slide Image │
+└────────────────────────┘
+```
 - Captures images in continuous lines
 - Faster than tile scanning for some applications
 - Uses focus maps for focusing
@@ -121,11 +222,14 @@ WSI images are **extremely large**. According to DICOM Supplement 145:
 - With 24-bit color: **~15 GB uncompressed**
 
 **Resolution Conventions**:
-- 0.25 mpp = "40X" magnification
-- 0.5 mpp = "20X" magnification
-- 1.0 mpp = "10X" magnification
-- 2.5 mpp = "4X" magnification
-- 5.0 mpp = "2X" magnification
+
+| Magnification | Microns per Pixel | Use Case |
+|--------------|-------------------|----------|
+| **40X** | 0.25 mpp | Highest detail, diagnostic review |
+| **20X** | 0.5 mpp | Standard viewing, routine H&E |
+| **10X** | 1.0 mpp | Low magnification, overview |
+| **4X** | 2.5 mpp | Navigation, tissue overview |
+| **2X** | 5.0 mpp | Quick scanning, orientation |
 
 **Extreme Example** (worst case):
 - Sample size: 50mm × 25mm
@@ -140,6 +244,34 @@ WSI images are **extremely large**. According to DICOM Supplement 145:
 
 **The Solution**: Store images as **multi-resolution pyramids**:
 
+```
+                    ┌─────────┐
+                    │ Level 4 │  5.0 mpp  (2X)   - Fast overview
+                    │  Small  │
+                    └────┬────┘
+                         │
+                    ┌────▼────┐
+                    │ Level 3 │  2.5 mpp  (4X)   - Navigation
+                    │ Medium  │
+                    └────┬────┘
+                         │
+                    ┌────▼────┐
+                    │ Level 2 │  1.0 mpp  (10X)  - Low mag view
+                    │  Large  │
+                    └────┬────┘
+                         │
+                    ┌────▼────┐
+                    │ Level 1 │  0.5 mpp  (20X)  - Medium mag
+                    │ Larger  │
+                    └────┬────┘
+                         │
+                    ┌────▼────┐
+                    │ Level 0 │  0.25 mpp (40X)  - Full detail
+                    │ Largest │  15 GB uncompressed
+                    └─────────┘
+```
+
+**Pyramid Levels**:
 - **Level 0** (base): Highest resolution, full detail (e.g., 0.25 mpp)
 - **Level 1**: 2× smaller (e.g., 0.5 mpp)
 - **Level 2**: 4× smaller (e.g., 1.0 mpp)
@@ -153,19 +285,32 @@ This allows rapid zooming without processing large amounts of data.
 Even at a single pyramid level, loading the entire image is impractical. Instead, images are divided into **tiles** (typically 256×256 or 512×512 pixels):
 
 ```
-┌─────┬─────┬─────┐
-│  1  │  2  │  3  │
-├─────┼─────┼─────┤
-│  4  │  5  │  6  │
-├─────┼─────┼─────┤
-│  7  │  8  │  9  │
-└─────┴─────┴─────┘
+Full Slide Image (80,000 × 60,000 pixels)
+┌───────────────────────────────────────┐
+│ ┌─────┬─────┬─────┬─────┬─────┬─────┐ │
+│ │  1  │  2  │  3  │  4  │  5  │  6  │ │  Row 1
+│ ├─────┼─────┼─────┼─────┼─────┼─────┤ │
+│ │  7  │  8  │  9  │ 10  │ 11  │ 12  │ │  Row 2
+│ ├─────┼─────┼─────┼─────┼─────┼─────┤ │
+│ │ 13  │ 14  │ 15  │ 16  │ 17  │ 18  │ │  Row 3
+│ ├─────┼─────┼─────┼─────┼─────┼─────┤ │
+│ │ ... │ ... │ ... │ ... │ ... │ ... │ │  ...
+│ └─────┴─────┴─────┴─────┴─────┴─────┘ │
+└───────────────────────────────────────┘
+     ↑ Each tile: 512×512 pixels
+     
+Viewport (only loads visible tiles)
+┌──────────┐
+│  8  │  9 │  ← Only these tiles loaded
+│ 14  │ 15 │
+└──────────┘
 ```
 
 **Benefits**:
-- Random access to any subregion without loading the entire image
-- Only visible tiles are loaded as the user pans and zooms
-- Similar to how Google Maps works
+- ✅ Random access to any subregion without loading the entire image
+- ✅ Only visible tiles are loaded as the user pans and zooms
+- ✅ Similar to how Google Maps works
+- ✅ Efficient memory usage
 
 ### Access Patterns
 

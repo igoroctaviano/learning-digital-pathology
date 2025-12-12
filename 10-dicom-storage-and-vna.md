@@ -25,15 +25,43 @@ Pathology is in a transition phase, moving from physical slides to digital whole
 
 The scale difference between radiology and pathology images is dramatic:
 
-**Radiology Images**:
-- Typical size: Megapixels (e.g., 512×512 to 2048×2048 pixels)
-- File size: Megabytes to low gigabytes per image
-- Storage needs: Terabytes for large radiology departments
+```
+┌─────────────────────────────────────────────────────────┐
+│                    Radiology Images                     │
+│                                                         │
+│  ┌──────────┐                                           │
+│  │  512×512 │  ~0.25 MP  →  ~1 MB                       │
+│  └──────────┘                                           │
+│  ┌────────────┐                                         │
+│  │  2048×2048 │  ~4 MP    →  ~8 MB                      │
+│  └────────────┘                                         │
+│                                                         │
+│  Storage: Terabytes (TB)                                │
+└─────────────────────────────────────────────────────────┘
 
-**Pathology WSI Images**:
-- Typical size: Gigapixels (e.g., 80,000×60,000 pixels = 4.8 gigapixels)
-- File size: Gigabytes per slide (15+ GB uncompressed)
-- Storage needs: Terabytes to **petabytes** for pathology labs
+┌─────────────────────────────────────────────────────────┐
+│                  Pathology WSI Images                   │
+│                                                         │
+│  ┌──────────────────────────────────────────┐           │
+│  │                                          │           │
+│  │    80,000 × 60,000 pixels                │           │
+│  │    = 4.8 Gigapixels                      │           │
+│  │    = 15 GB uncompressed                  │           │
+│  │                                          │           │
+│  └──────────────────────────────────────────┘           │
+│                                                         │
+│  Storage: Terabytes to Petabytes (PB)                   │
+└─────────────────────────────────────────────────────────┘
+```
+
+**Comparison Table**:
+
+| Aspect | Radiology | Pathology WSI |
+|--------|-----------|---------------|
+| **Typical Size** | Megapixels (512×512 to 2048×2048) | Gigapixels (80,000×60,000) |
+| **File Size** | Megabytes to low GB | Gigabytes per slide (15+ GB uncompressed) |
+| **Storage Needs** | Terabytes | Terabytes to **Petabytes** |
+| **Scale Factor** | 1× | **1000× to 10,000× larger** |
 
 ### Format Differences
 
@@ -80,20 +108,35 @@ VNAs use DICOM standards for interoperability:
 
 Implementing VNAs in pathology provides several advantages:
 
+```
+┌─────────────────────────────────────────────────────┐
+│            VNA Benefits for Pathology               │
+└─────────────────────────────────────────────────────┘
+
+┌─────────────────────┐ ┌─────────────────────┐ ┌─────────────────────┐
+│ Interoperability    │ │ Preservation        │ │ Management          │
+│                     │ │                     │ │                     │
+│ • Any scanner       │ │ • No vendor         │ │ • Centralized       │
+│ • Any viewer        │ │   lock-in           │ │ • Unified           │
+│ • Share             │ │ • Long-term         │ │ • Consistent        │
+│   anywhere          │ │   access            │ │   policies          │
+└─────────────────────┘ └─────────────────────┘ └─────────────────────┘
+```
+
 **Interoperability Across Scanner Vendors**:
-- Store images from Aperio, Leica, Philips, Hamamatsu, ZEISS, and other scanners in one system
-- View images from any scanner on any DICOM-compliant viewer
-- Share images between institutions regardless of scanner vendor
+- ✅ Store images from Aperio, Leica, Philips, Hamamatsu, ZEISS, and other scanners in one system
+- ✅ View images from any scanner on any DICOM-compliant viewer
+- ✅ Share images between institutions regardless of scanner vendor
 
 **Long-Term Preservation**:
-- Avoid vendor lock-in by using standard DICOM format
-- Ensure images remain accessible even if scanner vendor discontinues support
-- Facilitate data migration as technology evolves
+- ✅ Avoid vendor lock-in by using standard DICOM format
+- ✅ Ensure images remain accessible even if scanner vendor discontinues support
+- ✅ Facilitate data migration as technology evolves
 
 **Centralized Management**:
-- Single repository for all WSI images
-- Unified access control and security policies
-- Consistent backup and disaster recovery strategies
+- ✅ Single repository for all WSI images
+- ✅ Unified access control and security policies
+- ✅ Consistent backup and disaster recovery strategies
 
 ### Challenges Adapting VNAs for Pathology
 
@@ -208,6 +251,42 @@ Pathology workflows require tight integration with LIS:
 
 The strategy for storing virtual slides is largely dependent on intended use. Different use cases require different storage approaches:
 
+```
+┌─────────────────────────────────────────────────────────┐
+│              Storage Strategy Decision Tree             │
+└─────────────────────────────────────────────────────────┘
+
+Need retention? ──No──→ Local Storage
+     │
+    Yes
+     │
+Multiple users? ──No──→ Network Storage (single site)
+     │
+    Yes
+     │
+Multi-site? ──No──→ Network Storage (centralized)
+     │
+    Yes
+     │
+Need scalability? ──No──→ Hybrid (Hub-and-Spoke)
+     │
+    Yes
+     │
+    Cloud Storage
+```
+
+**Storage Options Comparison**:
+
+| Feature | Local | Network | Cloud | Hybrid |
+|---------|-------|---------|-------|--------|
+| **Setup Complexity** | ⭐ Simple | ⭐⭐ Moderate | ⭐⭐⭐ Complex | ⭐⭐⭐ Complex |
+| **Scalability** | ❌ Limited | ⭐⭐ Moderate | ✅✅✅ High | ✅✅ High |
+| **Multi-User** | ❌ No | ✅ Yes | ✅✅ Yes | ✅✅ Yes |
+| **Cost** | 💰 Low | 💰💰 Medium | 💰💰💰 Variable | 💰💰💰 Medium-High |
+| **Performance** | ⚡⚡⚡ Fast | ⚡⚡ Fast | ⚡ Variable | ⚡⚡⚡ Fast |
+| **Backup** | ❌ Manual | ✅✅ Automated | ✅✅✅ Automated | ✅✅✅ Automated |
+| **Accessibility** | 🏠 Local only | 🏢 Network | 🌍 Global | 🌍 Global |
+
 ### Local Storage
 
 **Appropriate For**:
@@ -253,6 +332,20 @@ The strategy for storing virtual slides is largely dependent on intended use. Di
 ### Hybrid Solutions
 
 **Hub-and-Spoke Models**:
+```
+        ┌─────────────┐
+        │ Central Hub │
+        │  (Archive)  │
+        └──────┬──────┘
+               │
+    ┌──────────┼──────────┐
+    │          │          │
+┌───▼───┐ ┌───▼───┐ ┌───▼───┐
+│ Site 1│ │ Site 2│ │ Site 3│
+│ Local │ │ Local │ │ Local │
+│Storage│ │Storage│ │Storage│
+└───────┘ └───────┘ └───────┘
+```
 - Effective for multisite organizations
 - Central hub with local storage at sites
 - Balances local performance with centralized management

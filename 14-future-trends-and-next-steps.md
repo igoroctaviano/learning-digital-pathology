@@ -142,15 +142,58 @@ DICOM standardization is essential for AI applications:
 
 A typical image analysis workflow involves two key steps:
 
+```
+┌─────────────────────────────────────────────────────┐
+│         Image Analysis Workflow                     │
+└─────────────────────────────────────────────────────┘
+
+Step 1: Region of Interest (ROI) Identification
+┌─────────────────────────────────────────┐
+│  Whole Slide Image                      │
+│  ┌────────────────────────────────────┐ │
+│  │ Host Tissue │ Tumor │ Stroma │     │ │
+│  │ Blood Vessels│ Organ Compartments  │ │
+│  └────────────────────────────────────┘ │
+│              ↓                          │
+│  ┌────────────────────────────────────┐ │
+│  │     Selected ROI (Tumor Region)    │ │
+│  │     ┌──────────────────────────┐   │ │
+│  │     │ Target Tissue Compartment│   │ │
+│  │     └──────────────────────────┘   │ │
+│  └────────────────────────────────────┘ │
+└─────────────────────────────────────────┘
+
+Step 2: Cellular Analysis
+┌─────────────────────────────────────────┐
+│  ROI Image                              │
+│  ┌───────────────────────────────────┐  │
+│  │  Cell Detection & Segmentation    │  │
+│  │  • Nuclei identification          │  │
+│  │  • Cell boundaries                │  │
+│  │  • Classification                 │  │
+│  └───────────────────────────────────┘  │
+│              ↓                          │
+│  ┌───────────────────────────────────┐  │
+│  │  Measurements & Quantification    │  │
+│  │  • Positive staining %            │  │
+│  │  • Cell counts                    │  │
+│  │  • Biomarker expression           │  │
+│  └───────────────────────────────────┘  │
+└─────────────────────────────────────────┘
+```
+
 **Step 1: Region of Interest Identification**:
 Most tissue samples contain a mix of host tissue, target tissue, blood vessels, stroma, tumor, organ compartments, and so forth. It is important to delineate the target compartment in the most relevant region, as the biomarker of interest may exist in other tissue compartments that are not relevant to the current study.
 
 **Step 2: Cellular Analysis**:
 Once the region of interest is defined, the analysis algorithm is configured and tested to optimize accurate segmentation of cells and measurement. Common user-configurable parameters include:
-- **Color**: Thresholds for color-based segmentation
-- **Threshold**: Intensity thresholds for detection
-- **Categorical Thresholds**: Multiple thresholds for classification
-- **Object Size**: To split adjacent or overlapping nuclei if the algorithm has an expectation of nuclear size
+
+| Parameter | Purpose |
+|-----------|---------|
+| **Color** | Thresholds for color-based segmentation |
+| **Threshold** | Intensity thresholds for detection |
+| **Categorical Thresholds** | Multiple thresholds for classification |
+| **Object Size** | To split adjacent or overlapping nuclei if the algorithm has an expectation of nuclear size |
 
 **Optimization Process**:
 Image analysis algorithm optimization is often an iterative process:
@@ -336,6 +379,20 @@ DICOM as input format for AI systems:
 ### 3D Reconstruction of Whole Slide Images
 
 Historically, WSI has been marketed and used mainly as a tool for 2-dimensional analysis, mimicking existing histopathology workflows. However, examination of 3-D structures in 2 dimensions generates a well-known information gap between recorded observations and the true state of the original tissue.
+
+```
+2D vs 3D Visualization
+
+2D View (Single Section)          3D View (Reconstructed)
+┌─────────────┐                    ┌─────────────┐
+│             │                    │     ╱╲      │
+│   ┌───┐     │                    │    ╱  ╲     │
+│   │███│     │                    │   ╱    ╲    │
+│   └───┘     │                    │  ╱      ╲   │
+│             │                    │ ╱        ╲  │
+└─────────────┘                    └─────────────┘
+Limited information              Complete 3D structure
+```
 
 **Clinical Value**:
 3-D reconstruction of whole slide histologic data is becoming more relevant and has demonstrated value in:

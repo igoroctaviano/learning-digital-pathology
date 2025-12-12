@@ -91,29 +91,44 @@ DPIA and DICOM Supplement 145 work together:
 
 DPIA defines several actors (system components) in pathology workflows:
 
-**Scanner**:
-- Captures whole slide images
-- Generates image data and metadata
-- Sends images to acquisition manager
-- Supports DPIA acquisition transactions
+```
+┌─────────────────────────────────────────────────────┐
+│            DPIA Workflow Actors                     │
+└─────────────────────────────────────────────────────┘
 
-**Acquisition Manager**:
-- Manages acquisition workflow
-- Coordinates between scanner and archive
-- Validates metadata
-- Handles quality assurance
+┌──────────────┐
+│    LIS       │ ← Provides patient/order info
+│ (Lab Info    │
+│   System)    │
+└──────┬───────┘
+       │
+       ▼
+┌──────────────┐
+│   Scanner    │ ← Captures WSI images
+│              │
+└──────┬───────┘
+       │
+       ▼
+┌──────────────┐
+│ Acquisition  │ ← Manages workflow, validates metadata
+│   Manager    │
+└──────┬───────┘
+       │
+       ▼
+┌──────────────┐
+│   Archive    │ ← Stores DICOM WSI images
+│  (PACS/VNA)  │
+└──────────────┘
+```
 
-**Archive**:
-- Stores DICOM WSI images
-- Provides long-term storage
-- Supports query and retrieve
-- Manages image lifecycle
+**Actors**:
 
-**LIS (Laboratory Information System)**:
-- Manages laboratory workflow
-- Provides patient and order information
-- Receives acquisition status updates
-- Integrates with pathology workflow
+| Actor | Role | Key Functions |
+|-------|------|---------------|
+| **Scanner** | Image Capture | • Captures whole slide images<br>• Generates image data and metadata<br>• Sends images to acquisition manager<br>• Supports DPIA acquisition transactions |
+| **Acquisition Manager** | Workflow Coordination | • Manages acquisition workflow<br>• Coordinates between scanner and archive<br>• Validates metadata<br>• Handles quality assurance |
+| **Archive** | Storage | • Stores DICOM WSI images<br>• Provides long-term storage<br>• Supports query and retrieve<br>• Manages image lifecycle |
+| **LIS** | Laboratory Management | • Manages laboratory workflow<br>• Provides patient and order information<br>• Receives acquisition status updates<br>• Integrates with pathology workflow |
 
 ### Transaction Definitions
 

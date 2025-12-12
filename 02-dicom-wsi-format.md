@@ -6,10 +6,35 @@
 
 DICOM files contain two main parts:
 
+```
+┌─────────────────────────────────────┐
+│         DICOM File Structure        │
+├─────────────────────────────────────┤
+│                                     │
+│  ┌───────────────────────────────┐  │
+│  │      Metadata Header          │  │
+│  │  • Patient ID                 │  │
+│  │  • Study/Series UIDs          │  │
+│  │  • Image dimensions           │  │
+│  │  • Pixel spacing              │  │
+│  │  • Acquisition parameters     │  │
+│  └───────────────────────────────┘  │
+│                                     │
+│  ┌───────────────────────────────┐  │
+│  │      Pixel Data               │  │
+│  │  • Image pixels               │  │
+│  │  • Compressed (JPEG/JPEG2000) │  │
+│  │  • Or external reference (URI)│  │
+│  └───────────────────────────────┘  │
+│                                     │
+└─────────────────────────────────────┘
+```
+
+**Components**:
 1. **Metadata**: Structured information about the image (patient ID, acquisition parameters, etc.)
 2. **Pixel Data**: The actual image pixels
 
-For WSI, pixel data is often stored externally and referenced via URIs (bulkdata).
+> **Note**: For WSI, pixel data is often stored externally and referenced via URIs (bulkdata) due to the large file sizes.
 
 ## Key DICOM Attributes for WSI
 
@@ -46,12 +71,30 @@ Example: `["ORIGINAL", "PRIMARY", "VOLUME"]`
 
 #### Image Flavors
 
-- **VOLUME**: High-resolution image data that forms the pyramid (multiple resolution levels)
-- **OVERVIEW**: Low-resolution image (1,000-5,000 px) for navigation
-- **THUMBNAIL**: Small preview (200-500 px) for browsing slide lists
-- **LABEL**: Image of the physical slide label (patient ID, etc.)
+```
+┌─────────────────────────────────────────────────────┐
+│              Image Types in WSI                     │
+└─────────────────────────────────────────────────────┘
 
-**Key point**: VOLUME images form the pyramid. Multiple VOLUME instances at different resolutions create the pyramid structure. THUMBNAIL images may be included as a fallback if no equivalent VOLUME image exists at that resolution. Other image types (OVERVIEW, LABEL) are standalone images, not part of the pyramid.
+VOLUME ────────┐
+               │
+               ├──→ Forms Pyramid (multiple resolutions)
+               │
+OVERVIEW ──────┤
+               │
+THUMBNAIL ─────┤──→ Standalone images (not in pyramid)
+               │
+LABEL ─────────┘
+```
+
+| Image Type | Size | Purpose | Part of Pyramid? |
+|------------|------|---------|------------------|
+| **VOLUME** | Full resolution | High-resolution image data | ✅ Yes - forms pyramid |
+| **OVERVIEW** | 1,000-5,000 px | Navigation aid (minimap) | ❌ No - standalone |
+| **THUMBNAIL** | 200-500 px | Quick preview in lists | ❌ No - standalone |
+| **LABEL** | Variable | Physical slide label image | ❌ No - standalone |
+
+> **Key point**: VOLUME images form the pyramid. Multiple VOLUME instances at different resolutions create the pyramid structure. THUMBNAIL images may be included as a fallback if no equivalent VOLUME image exists at that resolution. Other image types (OVERVIEW, LABEL) are standalone images, not part of the pyramid.
 
 ## Image Organization: Single Frame vs. Tiled
 
@@ -61,21 +104,55 @@ According to the [official DICOM WSI documentation](https://dicom.nema.org/dicom
 
 In a single frame organization, pixels are stored in rows extending across the entire image:
 
+```
+Single Frame (Inefficient for WSI)
+┌─────────────────────────────────────────┐
+│ Row 1: ████████████████████████████████ │
+│ Row 2: ████████████████████████████████ │
+│ Row 3: ████████████████████████████████ │
+│ Row 4: ████████████████████████████████ │
+│  ...  │
+│ Row N: ████████████████████████████████ │
+└─────────────────────────────────────────┘
+         ↑
+    To view this small region,
+    must load entire image!
+```
+
+**Characteristics**:
 - Pixels stored starting from upper left corner
 - Stored row by row, like text on a page
 - **Limitation**: To view a small region, a much larger region must be loaded
 
-This is inefficient for WSI because accessing any subregion requires loading large amounts of data.
+❌ **This is inefficient for WSI** because accessing any subregion requires loading large amounts of data.
 
 ### Tiled Organization
 
 In a tiled organization, pixels are stored in square or rectangular tiles:
 
+```
+Tiled Organization (Efficient for WSI)
+┌─────┬─────┬─────┬─────┬──────┐
+│Tile1│Tile2│Tile3│Tile4│Tile5 │  ← Can load
+├─────┼─────┼─────┼─────┼──────┤     individual
+│Tile6│Tile7│Tile8│Tile9│Tile10│    tiles!
+├─────┼─────┼─────┼─────┼──────┤
+│ ... │ ... │ ... │ ... │ ...  │
+└─────┴─────┴─────┴─────┴──────┘
+
+Viewport needs only:
+┌──────┬───────┐
+│Tile7 │Tile8  │  ← Load only these!
+│Tile12│Tile13 │
+└──────┴───────┘
+```
+
+**Characteristics**:
 - Pixels stored starting from upper left corner
 - Stored tile by tile, like pages in a book
 - **Benefit**: Random access to any subregion without loading the entire image
 
-**DICOM WSI uses tiled organization** to enable efficient panning and zooming.
+✅ **DICOM WSI uses tiled organization** to enable efficient panning and zooming.
 
 ## Image Pyramid Structure
 

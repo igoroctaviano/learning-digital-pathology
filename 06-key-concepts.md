@@ -8,6 +8,39 @@ This document explains important technical concepts used throughout the patholog
 
 A multi-resolution pyramid stores the same image at multiple zoom levels:
 
+```
+                    ┌─────────────┐
+                    │   Level 4   │  5.0 mpp (2X)
+                    │  16× smaller│  Fast overview
+                    │    Small    │
+                    └──────┬──────┘
+                           │
+                    ┌──────▼──────┐
+                    │   Level 3   │  2.5 mpp (4X)
+                    │   8× smaller│  Navigation
+                    │    Medium   │
+                    └──────┬──────┘
+                           │
+                    ┌──────▼──────┐
+                    │   Level 2   │  1.0 mpp (10X)
+                    │   4× smaller│  Low mag view
+                    │    Large    │
+                    └──────┬──────┘
+                           │
+                    ┌──────▼──────┐
+                    │   Level 1   │  0.5 mpp (20X)
+                    │   2× smaller│  Medium mag
+                    │   Larger    │
+                    └──────┬──────┘
+                           │
+                    ┌──────▼──────┐
+                    │   Level 0   │  0.25 mpp (40X)
+                    │   BASE      │  Full detail
+                    │   Largest   │  15 GB uncompressed
+                    └─────────────┘
+```
+
+**Pyramid Levels**:
 - **Level 0** (base): Highest resolution (e.g., 0.25 mpp / "40X")
 - **Level 1**: 2× smaller (e.g., 0.5 mpp / "20X")
 - **Level 2**: 4× smaller (e.g., 1.0 mpp / "10X")
@@ -246,15 +279,34 @@ The viewer supports all formats and decodes them client-side.
 
 For systems that enable users to specify the level of JPEG compression (usually expressed as a quality factor between 0 and 1):
 
+```
+┌─────────────────────────────────────────────────────┐
+│         JPEG Compression Quality Comparison         │
+└─────────────────────────────────────────────────────┘
+
+Quality Factor 0.8          Quality Factor 0.1
+┌──────────────┐            ┌──────────────┐
+│              │            │              │
+│  Good        │            │  Poor        │
+│  Quality     │            │  Quality     │
+│              │            │              │
+│  ✅ Minimal  │            │  ❌ Visible   │
+│     artifacts│            │     artifacts│
+│              │            │              │
+│  15.9×       │            │  108.3×      │
+│  reduction   │            │  reduction   │
+└──────────────┘            └──────────────┘
+```
+
 **Quality Factor 0.8**:
-- Reduction in file size by a factor of ~15.9
-- Generally acceptable quality for most diagnostic purposes
-- Minimal visible artifacts
+- ✅ Reduction in file size by a factor of ~15.9
+- ✅ Generally acceptable quality for most diagnostic purposes
+- ✅ Minimal visible artifacts
 
 **Quality Factor 0.1**:
-- Reduction in file size by a factor of ~108.3
-- Visible artifacts become apparent
-- Not recommended for diagnostic use
+- ❌ Reduction in file size by a factor of ~108.3
+- ❌ Visible artifacts become apparent
+- ❌ Not recommended for diagnostic use
 
 **Important Considerations**:
 - Morphologic assessments appear to be less affected by compression

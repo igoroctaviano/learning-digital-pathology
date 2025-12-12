@@ -18,15 +18,49 @@
 
 The library is organized into key modules:
 
-- **Metadata**: Parses and validates DICOM VL Whole Slide Microscopy Image metadata
-- **Pyramid**: Computes multi-resolution pyramid structure
-- **Viewer**: Main rendering components
-   - Groups images by type (VOLUME, THUMBNAIL, OVERVIEW, LABEL)
-   - `VolumeImageViewer`: Main viewer for VOLUME images
-   - `LabelImageViewer`: Viewer for LABEL images
-   - `OverviewImageViewer`: Viewer for OVERVIEW images
-   - `ThumbnailImageViewer`: Viewer for THUMBNAIL images
-- **Utils**: Helper functions for coordinate transformations, frame mapping, etc.
+```
+┌─────────────────────────────────────────────────────┐
+│      dicom-microscopy-viewer Architecture           │
+└─────────────────────────────────────────────────────┘
+
+┌────────────────────────────────────────────────┐
+│              dicom-microscopy-viewer           │
+│                                                │
+│  ┌──────────┐  ┌──────────┐  ┌──────────┐      │
+│  │ Metadata │  │ Pyramid  │  │  Utils   │      │
+│  │  Parser  │  │ Computer │  │ Helpers  │      │
+│  └────┬─────┘  └────┬─────┘  └────┬─────┘      │
+│       │             │             │            │
+│       └─────────────┼─────────────┘            │
+│                     │                          │
+│              ┌──────▼──────┐                   │
+│              │   Viewer    │                   │
+│              │  Components │                   │
+│              └──────┬──────┘                   │
+│                     │                          │
+│    ┌────────────────┼────────────────┐         │
+│    │                │                │         │
+│ ┌──▼───┐  ┌─────────▼─────────┐  ┌──▼───┐      │
+│ │Volume│  │ Overview/Thumbnail│  │Label │      │
+│ │Viewer│  │      Viewer       │  │Viewer│      │
+│ └──────┘  └───────────────────┘  └──────┘      │
+└────────────────────────────────────────────────┘
+```
+
+**Modules**:
+
+| Module | Purpose |
+|--------|---------|
+| **Metadata** | Parses and validates DICOM VL Whole Slide Microscopy Image metadata |
+| **Pyramid** | Computes multi-resolution pyramid structure |
+| **Viewer** | Main rendering components |
+| **Utils** | Helper functions for coordinate transformations, frame mapping, etc. |
+
+**Viewer Components**:
+- `VolumeImageViewer`: Main viewer for VOLUME images
+- `LabelImageViewer`: Viewer for LABEL images
+- `OverviewImageViewer`: Viewer for OVERVIEW images
+- `ThumbnailImageViewer`: Viewer for THUMBNAIL images
 
 ## VolumeImageViewer: The Main Viewer
 
@@ -48,6 +82,31 @@ When creating a `VolumeImageViewer`, you provide:
 - **Error interceptor**: Callback for handling errors
 
 **What happens during initialization**:
+
+```
+Initialization Flow
+┌──────────────────────────────────────────────────┐
+│  1. Validate Metadata                            │
+│     └─→ Ensures valid VOLUME instances           │
+│                                                  │
+│  2. Group by Optical Path                        │
+│     └─→ Separates by optical path identifier     │
+│                                                  │
+│  3. Compute Pyramid                              │
+│     └─→ Builds multi-resolution structure        │
+│                                                  │
+│  4. Setup DICOMweb Client(s)                     │
+│     └─→ Configures data retrieval                │
+│                                                  │
+│  5. Initialize OpenLayers Map                    │
+│     └─→ Creates tile-based rendering surface     │
+│                                                  │
+│  6. Create Tile Loaders                          │
+│     └─→ Sets up on-demand loading functions      │
+└──────────────────────────────────────────────────┘
+```
+
+**Steps**:
 1. **Validates metadata**: Ensures all images are valid VOLUME instances
 2. **Groups by optical path**: Separates monochrome and color images by optical path identifier
 3. **Computes pyramid**: Analyzes metadata to build the multi-resolution structure (see below)

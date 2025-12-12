@@ -63,6 +63,76 @@
 
 ## Data Flow: Viewing a Slide
 
+```
+┌─────────────────────────────────────────────────────────┐
+│           Data Flow: Viewing a Slide                    │
+└─────────────────────────────────────────────────────────┘
+
+User Action          System Component          DICOM Server
+─────────────────────────────────────────────────────────────
+
+1. Select study
+   ┌──────────┐
+   │CaseViewer│ ──QIDO-RS Query──→ ┌──────────────┐
+   └──────────┘                    │ DICOM Server │
+                                   └──────────────┘
+
+2. Discover slides
+   ┌──────────┐
+   │   Slim   │ Groups by ContainerIdentifier
+   └────┬─────┘         FrameOfReferenceUID
+
+3. Select slide
+   ┌───────────┐
+   │SlideViewer│ Mounts
+   └────┬──────┘
+
+4. Create Slide object
+   ┌──────────┐
+   │   Slim   │ Organizes: VOLUME, LABEL, OVERVIEW, THUMBNAIL
+   └────┬─────┘
+
+5. Create viewer
+   ┌──────────┐
+   │   Slim   │ ──Instantiates──→ VolumeImageViewer
+   └──────────┘
+
+6. Compute pyramid
+   ┌────────────────┐
+   │dicom-microscopy│ Analyzes metadata
+   │   -viewer      │ Builds pyramid structure
+   └──────┬─────────┘
+
+7. Setup tile loading
+   ┌──────────────┐
+   │dicom-microscopy│ Creates tile loaders
+   │   -viewer    │
+   └──────┬───────┘
+
+8. User pans/zooms
+   ┌──────────┐
+   │OpenLayers│ Requests visible tiles
+   └────┬─────┘
+        │
+9. Load tiles        │
+   ┌────▼─────┐      │
+   │  Viewer  │ ──WADO-RS──→ ┌──────────────┐
+   └──────────┘              │ DICOM Server │
+                             └──────────────┘
+
+10. Decode pixels
+    ┌────────────────┐
+    │dicom-microscopy│ Decompresses (JPEG/JPEG2000)
+    │   -viewer      │ Applies color correction
+    └──────┬─────────┘
+
+11. Render tiles
+    ┌──────────┐
+    │OpenLayers│ Displays tiles on screen
+    └──────────┘
+```
+
+**Steps**:
 1. **User selects study**: CaseViewer queries DICOMweb QIDO-RS for series
 2. **Slim discovers slides**: Groups images by `ContainerIdentifier` and `FrameOfReferenceUID`
 3. **User selects slide**: SlideViewer component mounts

@@ -16,6 +16,39 @@ The focus of this document is on **pathology-specific conversion needs** and too
 
 Pathology images often originate in proprietary formats from scanner manufacturers. Converting these to DICOM is essential for achieving interoperability, standardization, and long-term preservation in digital pathology workflows.
 
+```
+┌─────────────────────────────────────────────────────────┐
+│              The Conversion Challenge                    │
+└────────────────────────────────────────────────────────┘
+
+Proprietary Formats (Vendor-Specific)
+┌──────────┐  ┌──────────┐  ┌───────────┐  ┌──────────┐
+│  .svs    │  │  .czi    │  │  .ndpi    │  │  .vms    │
+│ (Aperio) │  │ (ZEISS)  │  │(Hamamatsu)│  │ (Philips)│
+└────┬─────┘  └────┬─────┘  └────┬──────┘  └────┬─────┘
+     │             │             │              │
+     └─────────────┼─────────────┼──────────────┘
+                   │             │
+                   ▼             ▼
+         ┌─────────────────────────┐
+         │   DICOM Converters      │
+         │   (Standardization)     │
+         └────────────┬────────────┘
+                      │
+                      ▼
+         ┌─────────────────────────┐
+         │   DICOM WSI Format      │
+         │   (Universal Standard)  │
+         └─────────────────────────┘
+                      │
+         ┌────────────┼────────────┐
+         ▼            ▼            ▼
+    ┌─────────┐  ┌─────────┐  ┌─────────┐
+    │  PACS   │  │   VNA   │  │  Any    │
+    │         │  │         │  │ Viewer  │
+    └─────────┘  └─────────┘  └─────────┘
+```
+
 ### Proprietary Formats from Pathology Scanners
 
 Different scanner manufacturers use proprietary file formats:
@@ -154,6 +187,32 @@ DICOM conversion enables AI and machine learning workflows:
 ## Overview of Existing DICOM Converters for Digital Pathology
 
 The following converters are specifically designed for or commonly used in digital pathology workflows:
+
+```
+┌─────────────────────────────────────────────────────┐
+│     DICOM Converters for Digital Pathology          │
+└─────────────────────────────────────────────────────┘
+
+┌──────────────────┐  ┌──────────────────┐
+│ ZEISS Converter  │  │ Google Cloud     │
+│   (.czi files)   │  │ Transformation   │
+└──────────────────┘  └──────────────────┘
+         │                     │
+         └──────────┬──────────┘
+                    │
+                    ▼
+         ┌──────────────────┐
+         │  DICOM WSI       │
+         │  (Standard)      │
+         └──────────────────┘
+                    │
+         ┌──────────┼──────────┐
+         │          │          │
+┌────────▼───┐ ┌───▼─────┐ ┌───▼────┐
+│ Orthanc    │ │Meditecs │ │ Others │
+│ Dicomizer  │ │DICOMPath│ │        │
+└────────────┘ └─────────┘ └────────┘
+```
 
 ### ZEISS DICOM Converter
 

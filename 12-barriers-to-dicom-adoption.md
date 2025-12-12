@@ -8,17 +8,50 @@ This document examines the challenges and barriers preventing widespread adoptio
 
 The adoption timeline reveals why pathology lags behind radiology:
 
+```
+Timeline Comparison
+
+Radiology                          Pathology
+─────────────────────────────────────────────────────
+1990s                             2010s
+  │                                  │
+  ▼                                  ▼
+┌─────────────────┐              ┌─────────────────┐
+│ DICOM Adoption  │              │ Digital Path    │
+│   Begins        │              │   Begins        │
+└────────┬────────┘              └────────┬────────┘
+         │                                │
+         ▼                                ▼
+2000s                             2019
+  │                                  │
+  ▼                                  ▼
+┌─────────────────┐              ┌─────────────────┐
+│ Mature          │              │ DICOM Supp 145  │
+│ Ecosystem       │              │   Finalized     │
+│ Established     │              │   (Recent!)     │
+└─────────────────┘              └────────┬────────┘
+                                          │
+                                          ▼
+                                    2020s+
+                                          │
+                                          ▼
+                                  ┌─────────────────┐
+                                  │ Transitioning   │
+                                  │   Ongoing       │
+                                  └─────────────────┘
+```
+
 **Radiology**:
-- Adopted DICOM standards in the 1990s
-- Established workflows and infrastructure over decades
-- Widespread vendor support and implementation
-- Mature ecosystem of DICOM-compliant systems
+- ✅ Adopted DICOM standards in the 1990s
+- ✅ Established workflows and infrastructure over decades
+- ✅ Widespread vendor support and implementation
+- ✅ Mature ecosystem of DICOM-compliant systems
 
 **Pathology**:
-- Digital pathology adoption accelerated in the 2010s
-- DICOM Supplement 145 (WSI standard) finalized in 2019 - relatively recent
-- Still transitioning from proprietary formats
-- Adoption varies significantly across institutions
+- ⏳ Digital pathology adoption accelerated in the 2010s
+- ⏳ DICOM Supplement 145 (WSI standard) finalized in 2019 - relatively recent
+- ⏳ Still transitioning from proprietary formats
+- ⏳ Adoption varies significantly across institutions
 
 ### Pathology's Diverse Vendor Landscape
 
@@ -41,20 +74,40 @@ Pathology has multiple scanner manufacturers, each with their own approach:
 
 The variety of proprietary formats creates fragmentation:
 
+```
+┌─────────────────────────────────────────────────────┐
+│         Format Fragmentation Problem                │
+└─────────────────────────────────────────────────────┘
+
+┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐
+│   .svs   │  │   .czi   │  │  .ndpi   │  │  .vms    │
+│ (Aperio) │  │ (ZEISS)  │  │(Hamamatsu)│ │ (Philips)│
+└────┬─────┘  └────┬─────┘  └────┬─────┘  └────┬─────┘
+     │             │             │             │
+     └─────────────┼─────────────┼─────────────┘
+                   │             │
+              ❌ Cannot view      ❌ Cannot share
+              across vendors      without vendor
+                                 software
+```
+
 **Proprietary Formats**:
-- `.svs` (Aperio ScanScope)
-- `.czi` (ZEISS)
-- `.ndpi` (Hamamatsu)
-- `.vms`, `.vmu` (Philips)
-- `.mrxs` (3DHistech)
-- `.scn` (Leica)
-- Various TIFF-based formats
+
+| Format | Vendor | Interoperability |
+|--------|--------|------------------|
+| `.svs` | Aperio ScanScope | ❌ Vendor-specific |
+| `.czi` | ZEISS | ❌ Vendor-specific |
+| `.ndpi` | Hamamatsu | ❌ Vendor-specific |
+| `.vms`, `.vmu` | Philips | ❌ Vendor-specific |
+| `.mrxs` | 3DHistech | ❌ Vendor-specific |
+| `.scn` | Leica | ❌ Vendor-specific |
+| Various TIFF | Multiple | ⚠️ Limited |
 
 **Impact**:
-- Lack of interoperability between formats
-- Cannot view images from one scanner on another vendor's viewer
-- Sharing images requires vendor-specific software
-- Data migration challenges when switching vendors
+- ❌ Lack of interoperability between formats
+- ❌ Cannot view images from one scanner on another vendor's viewer
+- ❌ Sharing images requires vendor-specific software
+- ❌ Data migration challenges when switching vendors
 
 ### Metadata Inconsistencies
 

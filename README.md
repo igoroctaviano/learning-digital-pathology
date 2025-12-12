@@ -33,6 +33,36 @@ These materials are designed to help you understand:
 
 We recommend reading these documents in order:
 
+```
+┌─────────────────────────────────────────────────────┐
+│              Recommended Learning Path              │
+└─────────────────────────────────────────────────────┘
+
+Foundation (Start Here)
+├─ 01. Introduction to Pathology and WSI
+├─ 02. DICOM WSI Format
+└─ 03. dicom-microscopy-viewer Engine
+
+Application Layer
+├─ 04. Slim Viewer Application
+└─ 05. Architecture Overview
+
+Core Concepts
+├─ 06. Key Concepts
+└─ 07. Common Use Cases
+
+Reference & Troubleshooting
+├─ 08. Troubleshooting
+└─ 09. Glossary
+
+Advanced Topics
+├─ 10. DICOM Storage & VNA
+├─ 11. DICOM Converters
+├─ 12. Barriers to DICOM Adoption
+├─ 13. IHE DPIA Integration Profile
+└─ 14. Future Trends & Next Steps (AI)
+```
+
 1. **[Introduction to Pathology and WSI](./01-introduction-to-pathology-and-wsi.md)**
 
    - What is pathology?
